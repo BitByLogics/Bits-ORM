@@ -1,13 +1,13 @@
 <div align="center">
-<img src="https://i.imgur.com/hy4lp6A.jpeg" style="width: 20%;" alt="Icon">
+<img src="https://i.imgur.com/KMwkYIK.jpeg" style="width: 20%;" alt="Icon">
 
-## Bit's Template
-[![Build](https://img.shields.io/github/actions/workflow/status/BitByLogics/TEMPLATE/.github/workflows/maven.yml?branch=master)](https://github.com/BitByLogics/Bits-Preferences/actions)
-![Issues](https://img.shields.io/github/issues-raw/BitByLogics/TEMPLATE)
-[![Stars](https://img.shields.io/github/stars/BitByLogics/TEMPLATE)](https://github.com/BitByLogics/Bits-Preferences/stargazers)
+## Bit's ORM (BORM)
+[![Build](https://img.shields.io/github/actions/workflow/status/BitByLogics/Bits-ORM/.github/workflows/maven.yml?branch=master)](https://github.com/BitByLogics/Bits-Preferences/actions)
+![Issues](https://img.shields.io/github/issues-raw/BitByLogics/Bits-ORM)
+[![Stars](https://img.shields.io/github/stars/BitByLogics/Bits-ORM)](https://github.com/BitByLogics/Bits-Preferences/stargazers)
 [![Chat)](https://img.shields.io/discord/1310486866272981002?logo=discord&logoColor=white)](https://discord.gg/syngw2UQUd)
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed ut nunc quis lectus semper sollicitudin non accumsan neque.
+An API for mapping Java objects to SQL, enabling seamless saving and loading of data to and from tables.
 </div>
 
 ## Features
