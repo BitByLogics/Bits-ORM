@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>net.bitbylogic</groupId>
-    <artifactId>bits-template</artifactId>
+    <artifactId>bits-orm</artifactId>
     <version>2024.12</version>
     <packaging>jar</packaging>
 
-    <name>Bit's Template</name>
+    <name>Bit's ORM</name>
 
     <properties>
         <java.version>21</java.version>
