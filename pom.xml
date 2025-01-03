@@ -88,7 +88,7 @@
         <dependency>
             <groupId>net.bitbylogic</groupId>
             <artifactId>bits-rps</artifactId>
-            <version>2024.12</version>
+            <version>2025.1.3</version>
         </dependency>
 
         <!-- HikariCP -->
