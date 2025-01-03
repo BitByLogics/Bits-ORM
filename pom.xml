@@ -50,6 +50,12 @@
             <name>GitHub BitByLogics Maven Packages</name>
             <url>https://maven.pkg.github.com/bitbylogics/*</url>
         </repository>
+
+        <!-- Spigot -->
+        <repository>
+            <id>spigot-repo</id>
+            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+        </repository>
     </repositories>
 
     <distributionManagement>
@@ -113,6 +119,14 @@
             <artifactId>mysql-connector-j</artifactId>
             <version>9.0.0</version>
             <scope>runtime</scope>
+        </dependency>
+
+        <!-- Spigot -->
+        <dependency>
+            <groupId>org.spigotmc</groupId>
+            <artifactId>spigot-api</artifactId>
+            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
