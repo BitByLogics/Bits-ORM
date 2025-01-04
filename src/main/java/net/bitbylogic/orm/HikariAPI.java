@@ -4,7 +4,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.Getter;
 import lombok.NonNull;
-import net.bitbylogic.orm.data.HikariColumnData;
+import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.HikariObject;
 import net.bitbylogic.orm.data.HikariTable;
 import net.bitbylogic.utils.Pair;
@@ -27,14 +27,15 @@ import java.util.function.Consumer;
 @Getter
 public class HikariAPI {
 
-    private final HikariDataSource hikari;
-    private final SQLType type;
+    private final HikariDataSource dataSource;
+    private final DatabaseType type;
 
     private final HashMap<String, Pair<String, HikariTable<?>>> tables = new HashMap<>();
     private final HashMap<HikariTable<?>, List<String>> pendingTables = new HashMap<>();
 
-    public HikariAPI(String address, String database, String port, String username, String password) {
-        this.type = SQLType.MYSQL;
+    public HikariAPI(@NonNull String address, @NonNull String database,
+                     @NonNull String port, @NonNull String username, @NonNull String password) {
+        this.type = DatabaseType.MYSQL;
 
         HikariConfig config = new HikariConfig();
         config.setMaximumPoolSize(10);
@@ -49,18 +50,24 @@ public class HikariAPI {
         config.addDataSourceProperty("user", username);
         config.addDataSourceProperty("password", password);
 
-        hikari = new HikariDataSource(config);
+        dataSource = new HikariDataSource(config);
     }
 
-    public HikariAPI(File databaseFile) {
-        this.type = SQLType.SQLITE;
+    public HikariAPI(@NonNull HikariConfig config) {
+        this.type = config.getJdbcUrl().contains("sqlite") ? DatabaseType.SQLITE : DatabaseType.MYSQL;
+
+        dataSource = new HikariDataSource(config);
+    }
+
+    public HikariAPI(@NonNull File databaseFile) {
+        this.type = DatabaseType.SQLITE;
 
         if (!databaseFile.exists()) {
             try {
                 databaseFile.createNewFile();
             } catch (IOException e) {
                 System.out.println("[HikariAPI]: Unable to find database file!");
-                hikari = null;
+                dataSource = null;
                 return;
             }
         }
@@ -74,7 +81,7 @@ public class HikariAPI {
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
         config.setConnectionInitSql("PRAGMA foreign_keys = ON;");
 
-        hikari = new HikariDataSource(config);
+        dataSource = new HikariDataSource(config);
     }
 
     public <O extends HikariObject, T extends HikariTable<O>> void registerTable(Class<? extends T> tableClass, Consumer<T> consumer) {
@@ -93,12 +100,12 @@ public class HikariAPI {
                         return;
                     }
 
-                    for (HikariColumnData columnData : table.getStatements().getColumnData()) {
-                        if (columnData.getStatementData().foreignTable().isEmpty()) {
+                    for (ColumnData columnData : table.getStatements().getColumnData()) {
+                        if (columnData.getColumn().foreignTable().isEmpty()) {
                             continue;
                         }
 
-                        String foreignTableName = columnData.getStatementData().foreignTable();
+                        String foreignTableName = columnData.getColumn().foreignTable();
                         HikariTable<?> foreignTable = getTable(foreignTableName);
 
                         if (foreignTable == null) {
@@ -111,7 +118,7 @@ public class HikariAPI {
                             return;
                         }
 
-                        columnData.setForeignKeyData(foreignTable.getStatements().getPrimaryKeyData().getStatementData());
+                        columnData.setForeignKeyData(foreignTable.getStatements().getPrimaryKeyData());
                         columnData.setForeignTable(foreignTable);
                     }
 
@@ -161,12 +168,12 @@ public class HikariAPI {
                 continue;
             }
 
-            for (HikariColumnData columnData : pendingTable.getStatements().getColumnData()) {
-                if (!columnData.getStatementData().foreignTable().equalsIgnoreCase(table.getTable())) {
+            for (ColumnData columnData : pendingTable.getStatements().getColumnData()) {
+                if (!columnData.getColumn().foreignTable().equalsIgnoreCase(table.getTable())) {
                     continue;
                 }
 
-                columnData.setForeignKeyData(table.getStatements().getPrimaryKeyData().getStatementData());
+                columnData.setForeignKeyData(table.getStatements().getPrimaryKeyData());
                 columnData.setForeignTable(table);
             }
 
@@ -189,7 +196,7 @@ public class HikariAPI {
 
     public synchronized void executeStatement(@NonNull String query, @Nullable Consumer<ResultSet> consumer, @Nullable Object... arguments) {
         CompletableFuture.runAsync(() -> {
-            try (Connection connection = hikari.getConnection()) {
+            try (Connection connection = dataSource.getConnection()) {
                 try (PreparedStatement statement = connection.prepareStatement(query, PreparedStatement.RETURN_GENERATED_KEYS)) {
                     if (arguments != null) {
                         int index = 1;
@@ -223,7 +230,7 @@ public class HikariAPI {
 
     public synchronized void executeQuery(@NonNull String query, @NonNull Consumer<ResultSet> consumer, @Nullable Object... arguments) {
         CompletableFuture.runAsync(() -> {
-            try (Connection connection = hikari.getConnection()) {
+            try (Connection connection = dataSource.getConnection()) {
                 try (PreparedStatement statement = connection.prepareStatement(query)) {
                     if (arguments != null) {
                         int index = 1;
@@ -252,11 +259,11 @@ public class HikariAPI {
     }
 
     public void close() {
-        if(hikari == null || hikari.isClosed()) {
+        if(dataSource == null || dataSource.isClosed()) {
             return;
         }
 
-        hikari.close();
+        dataSource.close();
     }
 
 }

@@ -3,11 +3,11 @@ package net.bitbylogic.orm.data.statements;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import net.bitbylogic.orm.annotation.HikariStatementData;
-import net.bitbylogic.orm.data.HikariColumnData;
+import net.bitbylogic.orm.annotation.Column;
+import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.HikariObject;
 import net.bitbylogic.orm.data.HikariTable;
-import net.bitbylogic.orm.processor.HikariFieldProcessor;
+import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.utils.HashMapUtil;
 import net.bitbylogic.utils.ListUtil;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
@@ -24,8 +24,8 @@ public abstract class HikariStatements<O extends HikariObject> {
 
     private final String tableName;
 
-    private final List<HikariColumnData> columnData = new ArrayList<>();
-    private final HashMap<String, HikariFieldProcessor<?>> cachedProcessors = new HashMap<>();
+    private final List<ColumnData> columnData = new ArrayList<>();
+    private final HashMap<String, FieldProcessor<?>> cachedProcessors = new HashMap<>();
 
     public void loadColumnData(@NonNull Object object, List<String> parentObjectFields) {
         List<Field> fields = new ArrayList<>();
@@ -36,11 +36,11 @@ public abstract class HikariStatements<O extends HikariObject> {
         List<String> originalFields = new ArrayList<>(parentObjectFields);
 
         fields.forEach(field -> {
-            if (!field.isAnnotationPresent(HikariStatementData.class)) {
+            if (!field.isAnnotationPresent(Column.class)) {
                 return;
             }
 
-            HikariStatementData data = field.getAnnotation(HikariStatementData.class);
+            Column data = field.getAnnotation(Column.class);
 
             if (!data.foreignTable().isEmpty() &&
                     (!field.getType().isInstance(HikariObject.class) &&
@@ -63,12 +63,7 @@ public abstract class HikariStatements<O extends HikariObject> {
                 return;
             }
 
-            if (data.dataType().isEmpty() && data.foreignTable().isEmpty()) {
-                System.out.println("(HikariObject): Skipped field " + field.getName() + ", you must provide a data type!");
-                return;
-            }
-
-            columnData.add(new HikariColumnData(field, object.getClass().getName(), data, parentObjectFields, null, null));
+            columnData.add(new ColumnData(field, object.getClass().getName(), data, parentObjectFields, null, null));
         });
     }
 
@@ -82,22 +77,22 @@ public abstract class HikariStatements<O extends HikariObject> {
 
     protected abstract String getUpdateStatement(O object, String... includedFields);
 
-    public abstract String getFormattedData(@NonNull HikariColumnData columnData);
+    public abstract String getFormattedData(@NonNull ColumnData columnData);
 
     protected String getValuesDataBlock(O object, String... includedFields) {
         StringBuilder builder = new StringBuilder();
         List<String> data = new ArrayList<>();
 
-        columnData.stream().filter(columnData -> columnData.getStatementData().primaryKey()).findFirst().ifPresent(columnData -> {
+        columnData.stream().filter(columnData -> columnData.getColumn().primaryKey()).findFirst().ifPresent(columnData -> {
             try {
                 Object fieldObject = getFieldObject(object, columnData);
 
-                HikariStatementData statementData = columnData.getStatementData();
+                Column statementData = columnData.getColumn();
                 Field field = columnData.getField();
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                HikariFieldProcessor processor = cachedProcessors.get(field.getName());
+                FieldProcessor processor = cachedProcessors.get(field.getName());
 
                 if (processor == null) {
                     try {
@@ -121,7 +116,7 @@ public abstract class HikariStatements<O extends HikariObject> {
         });
 
         columnData.forEach(columnData -> {
-            if (columnData.getStatementData().primaryKey() || columnData.getStatementData().autoIncrement()) {
+            if (columnData.getColumn().primaryKey() || columnData.getColumn().autoIncrement()) {
                 return;
             }
 
@@ -132,12 +127,12 @@ public abstract class HikariStatements<O extends HikariObject> {
             try {
                 Object fieldObject = getFieldObject(object, columnData);
 
-                HikariStatementData statementData = columnData.getStatementData();
+                Column statementData = columnData.getColumn();
                 Field field = columnData.getField();
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                HikariFieldProcessor processor = cachedProcessors.get(field.getName());
+                FieldProcessor processor = cachedProcessors.get(field.getName());
 
                 if (processor == null) {
                     try {
@@ -164,7 +159,7 @@ public abstract class HikariStatements<O extends HikariObject> {
         return builder.toString();
     }
 
-    public Object getFieldObject(Object object, HikariColumnData columnData) {
+    public Object getFieldObject(Object object, ColumnData columnData) {
         if (columnData.getParentObjectFields().isEmpty()) {
             return object;
         }
@@ -196,8 +191,8 @@ public abstract class HikariStatements<O extends HikariObject> {
         return null;
     }
 
-    protected Object getForeignFieldIdData(Object object, Field field, HikariColumnData columnData) {
-        if (columnData.getStatementData().foreignTable().isEmpty()) {
+    protected Object getForeignFieldIdData(Object object, Field field, ColumnData columnData) {
+        if (columnData.getColumn().foreignTable().isEmpty()) {
             return null;
         }
 
@@ -208,7 +203,7 @@ public abstract class HikariStatements<O extends HikariObject> {
             Object fieldValue = field.get(object);
 
             if (foreignTable == null) {
-                System.out.println("(HikariAPI): Missing foreign table: " + columnData.getStatementData().foreignTable());
+                System.out.println("(HikariAPI): Missing foreign table: " + columnData.getColumn().foreignTable());
                 return null;
             }
 
@@ -246,8 +241,8 @@ public abstract class HikariStatements<O extends HikariObject> {
         return null;
     }
 
-    public HikariColumnData getPrimaryKeyData() {
-        return columnData.stream().filter(columnData -> columnData.getStatementData().primaryKey()).findFirst().orElse(null);
+    public ColumnData getPrimaryKeyData() {
+        return columnData.stream().filter(columnData -> columnData.getColumn().primaryKey()).findFirst().orElse(null);
     }
 
 }

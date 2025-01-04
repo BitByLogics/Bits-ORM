@@ -2,10 +2,10 @@ package net.bitbylogic.orm.data.statements;
 
 import lombok.Getter;
 import lombok.NonNull;
-import net.bitbylogic.orm.annotation.HikariStatementData;
-import net.bitbylogic.orm.data.HikariColumnData;
+import net.bitbylogic.orm.annotation.Column;
+import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.HikariObject;
-import net.bitbylogic.orm.processor.HikariFieldProcessor;
+import net.bitbylogic.orm.processor.FieldProcessor;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -25,8 +25,8 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
     public String getTableCreateStatement() {
         StringBuilder builder = new StringBuilder(String.format("CREATE TABLE IF NOT EXISTS %s (%s", getTableName(), getStatementDataBlock(true)));
 
-        getColumnData().stream().filter(columnData -> columnData.getStatementData().primaryKey()).findFirst()
-                .ifPresent(columnData -> builder.append(String.format(", PRIMARY KEY(%s)", columnData.getColumnName())));
+        getColumnData().stream().filter(columnData -> columnData.getColumn().primaryKey()).findFirst()
+                .ifPresent(columnData -> builder.append(String.format(", PRIMARY KEY(%s)", columnData.getName())));
 
         return builder.append(");").toString();
     }
@@ -37,13 +37,13 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
         List<String> keys = new ArrayList<>();
         List<String> values = new ArrayList<>();
 
-        getColumnData().stream().filter(data -> data.getStatementData().primaryKey()).findFirst().ifPresent(columnData -> {
-            keys.add(columnData.getColumnName());
+        getColumnData().stream().filter(data -> data.getColumn().primaryKey()).findFirst().ifPresent(columnData -> {
+            keys.add(columnData.getName());
             values.add(getFormattedData(columnData));
         });
 
         getColumnData().forEach(columnData -> {
-            if (columnData.getStatementData().primaryKey() || columnData.getStatementData().autoIncrement()) {
+            if (columnData.getColumn().primaryKey() || columnData.getColumn().autoIncrement()) {
                 return;
             }
 
@@ -51,7 +51,7 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
                 return;
             }
 
-            keys.add(columnData.getColumnName());
+            keys.add(columnData.getName());
             values.add(getFormattedData(columnData));
         });
 
@@ -66,26 +66,26 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
 
     @Override
     public String getDataDeleteStatement(O object) {
-        if (getColumnData().stream().noneMatch(columnData -> columnData.getStatementData().primaryKey())) {
+        if (getColumnData().stream().noneMatch(columnData -> columnData.getColumn().primaryKey())) {
             System.out.printf("[APIByLogic] [HikariAPI] (%s) No primary key, aborting.%n", getTableName());
             return null;
         }
 
         StringBuilder builder = new StringBuilder();
 
-        getColumnData().stream().filter(columnData -> columnData.getStatementData().primaryKey()).findFirst()
+        getColumnData().stream().filter(columnData -> columnData.getColumn().primaryKey()).findFirst()
                 .ifPresent(columnData -> {
-                    builder.append(String.format("DELETE FROM %s WHERE %s=", getTableName(), columnData.getColumnName()));
+                    builder.append(String.format("DELETE FROM %s WHERE %s=", getTableName(), columnData.getName()));
 
                     try {
                         Object fieldObject = getFieldObject(object, columnData);
 
-                        HikariStatementData statementData = columnData.getStatementData();
+                        Column statementData = columnData.getColumn();
                         Field field = columnData.getField();
                         field.setAccessible(true);
                         Object fieldValue = field.get(fieldObject);
 
-                        HikariFieldProcessor processor = getCachedProcessors().get(field.getName());
+                        FieldProcessor processor = getCachedProcessors().get(field.getName());
 
                         if (processor == null) {
                             try {
@@ -119,7 +119,7 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
         List<String> entries = new ArrayList<>();
 
         getColumnData().forEach(columnData -> {
-            if (columnData.getStatementData().primaryKey() || columnData.getStatementData().autoIncrement()) {
+            if (columnData.getColumn().primaryKey() || columnData.getColumn().autoIncrement()) {
                 return;
             }
 
@@ -127,11 +127,11 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
                 return;
             }
 
-            if (!columnData.getStatementData().updateOnSave()) {
+            if (!columnData.getColumn().updateOnSave()) {
                 return;
             }
 
-            entries.add(columnData.getColumnName() + "=VALUES(" + columnData.getColumnName() + ")");
+            entries.add(columnData.getName() + "=VALUES(" + columnData.getName() + ")");
         });
 
         return builder.append(String.join(", ", entries)).append(";").toString();
@@ -144,7 +144,7 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
         List<String> entries = new ArrayList<>();
 
         getColumnData().forEach(columnData -> {
-            if (columnData.getStatementData().primaryKey() || columnData.getStatementData().autoIncrement()) {
+            if (columnData.getColumn().primaryKey() || columnData.getColumn().autoIncrement()) {
                 return;
             }
 
@@ -155,12 +155,12 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
             try {
                 Object fieldObject = getFieldObject(object, columnData);
 
-                HikariStatementData statementData = columnData.getStatementData();
+                Column statementData = columnData.getColumn();
                 Field field = columnData.getField();
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                HikariFieldProcessor processor = getCachedProcessors().get(field.getName());
+                FieldProcessor processor = getCachedProcessors().get(field.getName());
 
                 if (processor == null) {
                     try {
@@ -183,19 +183,19 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
             }
         });
 
-        getColumnData().stream().filter(columnData -> columnData.getStatementData().primaryKey()).findFirst()
+        getColumnData().stream().filter(columnData -> columnData.getColumn().primaryKey()).findFirst()
                 .ifPresent(columnData -> {
                     try {
                         Object fieldObject = getFieldObject(object, columnData);
 
-                        HikariStatementData statementData = columnData.getStatementData();
+                        Column statementData = columnData.getColumn();
                         Field field = columnData.getField();
                         field.setAccessible(true);
                         Object fieldValue = field.get(fieldObject);
 
-                        builder.append(String.join(", ", entries)).append(" WHERE ").append(columnData.getColumnName()).append(" = ");
+                        builder.append(String.join(", ", entries)).append(" WHERE ").append(columnData.getName()).append(" = ");
 
-                        HikariFieldProcessor processor = getCachedProcessors().get(field.getName());
+                        FieldProcessor processor = getCachedProcessors().get(field.getName());
 
                         if (processor == null) {
                             try {
@@ -222,21 +222,21 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
     }
 
     @Override
-    public String getFormattedData(@NonNull HikariColumnData columnData) {
+    public String getFormattedData(@NonNull ColumnData columnData) {
         if (columnData.getForeignKeyData() != null) {
-            String dataType = columnData.getForeignKeyData().dataType();
+            String dataType = columnData.getForeignKeyData().getDataType();
             Class<?> fieldClass = columnData.getField().getType();
 
             if (fieldClass.isAssignableFrom(List.class) || fieldClass.isAssignableFrom(Map.class)) {
                 dataType = "LONGTEXT";
             }
 
-            return columnData.getColumnName() + " " + dataType + " " + (columnData.getForeignKeyData().allowNull() ? "" : "NOT NULL")
-                    + (columnData.getForeignKeyData().autoIncrement() ? " AUTO_INCREMENT" : "");
+            return columnData.getName() + " " + dataType + " " + (columnData.getForeignKeyData().getColumn().allowNull() ? "" : "NOT NULL")
+                    + (columnData.getForeignKeyData().getColumn().autoIncrement() ? " AUTO_INCREMENT" : "");
         }
 
-        return columnData.getColumnName() + " " + columnData.getStatementData().dataType() + " " +
-                (columnData.getStatementData().allowNull() ? "" : "NOT NULL") + (columnData.getStatementData().autoIncrement() ? " AUTO_INCREMENT" : "");
+        return columnData.getName() + " " + columnData.getDataType() + " " +
+                (columnData.getColumn().allowNull() ? "" : "NOT NULL") + (columnData.getColumn().autoIncrement() ? " AUTO_INCREMENT" : "");
     }
 
 }

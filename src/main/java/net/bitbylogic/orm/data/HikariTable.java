@@ -3,12 +3,12 @@ package net.bitbylogic.orm.data;
 import lombok.Getter;
 import lombok.NonNull;
 import net.bitbylogic.orm.HikariAPI;
-import net.bitbylogic.orm.annotation.HikariStatementData;
+import net.bitbylogic.orm.annotation.Column;
 import net.bitbylogic.orm.data.statements.HikariStatements;
-import net.bitbylogic.orm.processor.HikariFieldProcessor;
-import net.bitbylogic.orm.processor.impl.DefaultHikariFieldProcessor;
+import net.bitbylogic.orm.processor.FieldProcessor;
+import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.redis.HikariRedisUpdateType;
-import net.bitbylogic.orm.redis.HikariUpdateRedisMessageListener;
+import net.bitbylogic.orm.redis.HikariUpdateRML;
 import net.bitbylogic.rps.client.RedisClient;
 import net.bitbylogic.rps.listener.ListenerComponent;
 import net.bitbylogic.utils.HashMapUtil;
@@ -158,7 +158,7 @@ public class HikariTable<O extends HikariObject> {
             }
 
             statements.getColumnData().forEach(columnData -> {
-                if (!columnData.getStatementData().autoIncrement()) {
+                if (!columnData.getColumn().autoIncrement()) {
                     return;
                 }
 
@@ -195,8 +195,8 @@ public class HikariTable<O extends HikariObject> {
 
         dataMap.remove(statements.getId(object));
 
-        for (HikariColumnData columnData : statements.getColumnData()) {
-            if (columnData.getForeignTable() == null || !columnData.getStatementData().foreignDelete()) {
+        for (ColumnData columnData : statements.getColumnData()) {
+            if (columnData.getForeignTable() == null || !columnData.getColumn().foreignDelete()) {
                 continue;
             }
 
@@ -354,17 +354,17 @@ public class HikariTable<O extends HikariObject> {
         try {
             List<NamedParameter> namedParameters = new ArrayList<>();
 
-            for (HikariColumnData columnData : statements.getColumnData()) {
-                HikariStatementData statementData = columnData.getStatementData();
-                HikariFieldProcessor processor = ReflectionUtil.findAndCallConstructor(columnData.getStatementData().processor());
+            for (ColumnData columnData : statements.getColumnData()) {
+                Column statementData = columnData.getColumn();
+                FieldProcessor processor = ReflectionUtil.findAndCallConstructor(columnData.getColumn().processor());
 
                 if (processor == null) {
-                    log("Unable to load object, invalid processor '" + columnData.getStatementData().processor() + ".");
+                    log("Unable to load object, invalid processor '" + columnData.getColumn().processor() + ".");
                     consumer.accept(Optional.empty());
                     return;
                 }
 
-                Object object = result.getObject(columnData.getColumnName());
+                Object object = result.getObject(columnData.getName());
                 Class<?> fieldTypeClass = columnData.getField().getType();
 
                 if (fieldTypeClass.isEnum()) {
@@ -380,7 +380,7 @@ public class HikariTable<O extends HikariObject> {
                     object = processor.parseFromObject(object);
 
                     if (fieldTypeClass != String.class &&
-                            processor instanceof DefaultHikariFieldProcessor &&
+                            processor instanceof DefaultFieldProcessor &&
                             object instanceof String string) {
                         object = StringProcessor.findAndProcess(fieldTypeClass, string);
                     }
@@ -401,7 +401,7 @@ public class HikariTable<O extends HikariObject> {
                 HikariTable<?> foreignTable = hikariAPI.getTable(statementData.foreignTable());
 
                 if (foreignTable == null) {
-                    log("Unable to load object, missing foreign table: " + columnData.getStatementData().foreignDelete());
+                    log("Unable to load object, missing foreign table: " + columnData.getColumn().foreignDelete());
                     continue;
                 }
 
@@ -451,7 +451,7 @@ public class HikariTable<O extends HikariObject> {
             return;
         }
 
-        hikariAPI.executeQuery(String.format("SELECT * FROM %s WHERE %s = '%s';", table, statements.getPrimaryKeyData().getColumnName(), id), result -> {
+        hikariAPI.executeQuery(String.format("SELECT * FROM %s WHERE %s = '%s';", table, statements.getPrimaryKeyData().getName(), id), result -> {
             try {
                 if (result == null || !result.next()) {
                     consumer.accept(Optional.empty());
@@ -494,7 +494,7 @@ public class HikariTable<O extends HikariObject> {
 
     public void registerRedisHook(RedisClient redisClient) {
         this.redisClient = redisClient;
-        redisClient.registerListener(new HikariUpdateRedisMessageListener<O>(this));
+        redisClient.registerListener(new HikariUpdateRML<O>(this));
     }
 
     private void log(@NonNull String message) {

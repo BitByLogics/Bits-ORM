@@ -11,7 +11,7 @@ import net.bitbylogic.utils.reflection.ReflectionUtil;
 import java.lang.reflect.InvocationTargetException;
 
 @RequiredArgsConstructor
-public enum SQLType {
+public enum DatabaseType {
 
     MYSQL(SQLStatements.class),
     SQLITE(SQLiteStatements.class);

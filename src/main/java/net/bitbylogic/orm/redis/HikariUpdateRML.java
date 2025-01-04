@@ -10,11 +10,11 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-public class HikariUpdateRedisMessageListener<O extends HikariObject> extends RedisMessageListener {
+public class HikariUpdateRML<O extends HikariObject> extends RedisMessageListener {
 
     private final HikariTable<O> hikariTable;
 
-    public HikariUpdateRedisMessageListener(HikariTable<O> hikariTable) {
+    public HikariUpdateRML(HikariTable<O> hikariTable) {
         super("hikari-update");
         this.hikariTable = hikariTable;
     }

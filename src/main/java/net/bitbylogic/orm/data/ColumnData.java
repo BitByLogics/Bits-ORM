@@ -3,7 +3,8 @@ package net.bitbylogic.orm.data;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.Setter;
-import net.bitbylogic.orm.annotation.HikariStatementData;
+import net.bitbylogic.orm.annotation.Column;
+import net.bitbylogic.orm.util.DataTypeInferencer;
 import net.bitbylogic.utils.reflection.NamedParameter;
 import org.jetbrains.annotations.Nullable;
 
@@ -12,24 +13,29 @@ import java.util.List;
 
 @AllArgsConstructor
 @Getter
-public class HikariColumnData {
+public class ColumnData {
 
     private final Field field;
     private final String parentClassName;
-    private final HikariStatementData statementData;
+    private final Column column;
     private final List<String> parentObjectFields;
 
     @Setter
-    private HikariStatementData foreignKeyData;
+    private ColumnData foreignKeyData;
     @Setter
     private HikariTable<?> foreignTable;
 
-    public String getColumnName() {
-        if (statementData.columnName().isEmpty()) {
-            return statementData.subClass() ? parentClassName + "_" + field.getName() : field.getName();
+    public String getName() {
+        if (column.name().isEmpty()) {
+            return column.subClass() ? parentClassName + "_" + field.getName() : field.getName();
         }
 
-        return statementData.columnName();
+        return column.name();
+    }
+
+    public String getDataType() {
+        return column.subClass() ? foreignKeyData.getDataType() : column.dataType().isEmpty()
+                ? DataTypeInferencer.inferDataType(field.getType()) : column.dataType();
     }
 
     public NamedParameter asNamedParameter(@Nullable Object value) {

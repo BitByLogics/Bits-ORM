@@ -1,18 +1,18 @@
 package net.bitbylogic.orm.annotation;
 
-import net.bitbylogic.orm.processor.HikariFieldProcessor;
-import net.bitbylogic.orm.processor.impl.DefaultHikariFieldProcessor;
+import net.bitbylogic.orm.processor.FieldProcessor;
+import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 
 import java.lang.annotation.*;
 
 @Target(ElementType.FIELD)
 @Retention(RetentionPolicy.RUNTIME)
 @Inherited
-public @interface HikariStatementData {
+public @interface Column {
 
     String dataType() default "";
 
-    String columnName() default "";
+    String name() default "";
 
     boolean allowNull() default true;
 
@@ -24,7 +24,7 @@ public @interface HikariStatementData {
 
     boolean subClass() default false;
 
-    Class<? extends HikariFieldProcessor<?>> processor() default DefaultHikariFieldProcessor.class;
+    Class<? extends FieldProcessor<?>> processor() default DefaultFieldProcessor.class;
 
     String foreignTable() default "";
 
