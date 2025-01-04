@@ -9,6 +9,8 @@ import net.bitbylogic.orm.data.HikariObject;
 import net.bitbylogic.orm.data.HikariTable;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
+import net.bitbylogic.orm.processor.impl.StringListProcessor;
+import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.utils.Pair;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
 import org.jetbrains.annotations.Nullable;
@@ -34,7 +36,7 @@ public class HikariAPI {
     private final HikariDataSource dataSource;
     private final DatabaseType type;
 
-    private final HashMap<Class<?>, FieldProcessor<?>> fieldProcessors = new HashMap<>();
+    private final HashMap<TypeToken<?>, FieldProcessor<?>> fieldProcessors = new HashMap<>();
     private final HashMap<String, Pair<String, HikariTable<?>>> tables = new HashMap<>();
     private final HashMap<HikariTable<?>, List<String>> pendingTables = new HashMap<>();
 
@@ -56,12 +58,16 @@ public class HikariAPI {
         config.addDataSourceProperty("password", password);
 
         dataSource = new HikariDataSource(config);
+
+        registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
     }
 
     public HikariAPI(@NonNull HikariConfig config) {
         this.type = config.getJdbcUrl().contains("sqlite") ? DatabaseType.SQLITE : DatabaseType.MYSQL;
 
         dataSource = new HikariDataSource(config);
+
+        registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
     }
 
     public HikariAPI(@NonNull File databaseFile) {
@@ -87,6 +93,8 @@ public class HikariAPI {
         config.setConnectionInitSql("PRAGMA foreign_keys = ON;");
 
         dataSource = new HikariDataSource(config);
+
+        registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
     }
 
     public <O extends HikariObject, T extends HikariTable<O>> void registerTable(Class<? extends T> tableClass, Consumer<T> consumer) {
@@ -271,16 +279,16 @@ public class HikariAPI {
         dataSource.close();
     }
 
-    public <T> void registerFieldProcessor(@NonNull FieldProcessor<T> processor, @NonNull Class<T> classToProcess) {
-        if(fieldProcessors.containsKey(classToProcess)) {
+    public <T> void registerFieldProcessor(@NonNull TypeToken<T> type, @NonNull FieldProcessor<T> processor) {
+        if(fieldProcessors.containsKey(type)) {
             return;
         }
 
-        fieldProcessors.put(classToProcess, processor);
+        fieldProcessors.put(type, processor);
     }
 
-    public FieldProcessor getFieldProcessor(@NonNull Class<?> fieldClass) {
-        return fieldProcessors.getOrDefault(fieldClass, DEFAULT_FIELD_PROCESSOR);
+    public FieldProcessor<?> getFieldProcessor(@NonNull TypeToken<?> type) {
+        return fieldProcessors.getOrDefault(type, DEFAULT_FIELD_PROCESSOR);
     }
 
 }

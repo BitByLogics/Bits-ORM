@@ -9,6 +9,7 @@ import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.redis.HikariRedisUpdateType;
 import net.bitbylogic.orm.redis.HikariUpdateRML;
+import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.rps.client.RedisClient;
 import net.bitbylogic.rps.listener.ListenerComponent;
 import net.bitbylogic.utils.HashMapUtil;
@@ -356,7 +357,7 @@ public class HikariTable<O extends HikariObject> {
 
             for (ColumnData columnData : statements.getColumnData()) {
                 Column statementData = columnData.getColumn();
-                FieldProcessor processor = hikariAPI.getFieldProcessor(columnData.getField().getType());
+                FieldProcessor processor = hikariAPI.getFieldProcessor(TypeToken.asTypeToken(columnData.getField().getType()));
 
                 Object object = result.getObject(columnData.getName());
                 Class<?> fieldTypeClass = columnData.getField().getType();

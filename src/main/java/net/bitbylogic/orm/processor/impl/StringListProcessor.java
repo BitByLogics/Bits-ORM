@@ -1,5 +1,6 @@
 package net.bitbylogic.orm.processor.impl;
 
+import com.google.gson.reflect.TypeToken;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.utils.ListUtil;
 

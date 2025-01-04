@@ -7,6 +7,7 @@ import net.bitbylogic.orm.annotation.Column;
 import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.HikariObject;
 import net.bitbylogic.orm.processor.FieldProcessor;
+import net.bitbylogic.orm.util.TypeToken;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -86,7 +87,7 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
                         field.setAccessible(true);
                         Object fieldValue = field.get(fieldObject);
 
-                        FieldProcessor processor = getHikariAPI().getFieldProcessor(field.getType());
+                        FieldProcessor processor = getHikariAPI().getFieldProcessor(TypeToken.asTypeToken(field.getType()));
 
                         if (statementData.foreignTable().isEmpty()) {
                             builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));
@@ -151,7 +152,7 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = getHikariAPI().getFieldProcessor(field.getType());
+                FieldProcessor processor = getHikariAPI().getFieldProcessor(TypeToken.asTypeToken(field.getType()));
 
                 if (statementData.foreignTable().isEmpty()) {
                     entries.add(String.format("key= %s", fieldValue == null ? null : "'" + processor.parseToObject(fieldValue) + "'"));
@@ -176,7 +177,7 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
 
                         builder.append(String.join(", ", entries)).append(" WHERE ").append(columnData.getName()).append(" = ");
 
-                        FieldProcessor processor = getHikariAPI().getFieldProcessor(field.getType());
+                        FieldProcessor processor = getHikariAPI().getFieldProcessor(TypeToken.asTypeToken(field.getType()));
 
                         if (statementData.foreignTable().isEmpty()) {
                             builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));

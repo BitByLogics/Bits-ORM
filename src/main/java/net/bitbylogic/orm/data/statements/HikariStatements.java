@@ -9,6 +9,7 @@ import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.HikariObject;
 import net.bitbylogic.orm.data.HikariTable;
 import net.bitbylogic.orm.processor.FieldProcessor;
+import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.utils.HashMapUtil;
 import net.bitbylogic.utils.ListUtil;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
@@ -93,7 +94,7 @@ public abstract class HikariStatements<O extends HikariObject> {
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = hikariAPI.getFieldProcessor(field.getType());
+                FieldProcessor processor = hikariAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                 if (statementData.foreignTable().isEmpty()) {
                     data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));
@@ -123,7 +124,7 @@ public abstract class HikariStatements<O extends HikariObject> {
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = hikariAPI.getFieldProcessor(field.getType());
+                FieldProcessor processor = hikariAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                 if (statementData.foreignTable().isEmpty()) {
                     data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));
