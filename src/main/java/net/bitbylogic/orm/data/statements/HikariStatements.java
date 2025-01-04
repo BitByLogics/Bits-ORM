@@ -3,6 +3,7 @@ package net.bitbylogic.orm.data.statements;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import net.bitbylogic.orm.HikariAPI;
 import net.bitbylogic.orm.annotation.Column;
 import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.HikariObject;
@@ -22,10 +23,10 @@ import java.util.*;
 @Getter
 public abstract class HikariStatements<O extends HikariObject> {
 
+    private final HikariAPI hikariAPI;
     private final String tableName;
 
     private final List<ColumnData> columnData = new ArrayList<>();
-    private final HashMap<String, FieldProcessor<?>> cachedProcessors = new HashMap<>();
 
     public void loadColumnData(@NonNull Object object, List<String> parentObjectFields) {
         List<Field> fields = new ArrayList<>();
@@ -92,17 +93,7 @@ public abstract class HikariStatements<O extends HikariObject> {
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = cachedProcessors.get(field.getName());
-
-                if (processor == null) {
-                    try {
-                        processor = statementData.processor().getDeclaredConstructor().newInstance();
-                        cachedProcessors.put(field.getName(), processor);
-                    } catch (InstantiationException | InvocationTargetException | NoSuchMethodException e) {
-                        e.printStackTrace();
-                        return;
-                    }
-                }
+                FieldProcessor processor = hikariAPI.getFieldProcessor(field.getType());
 
                 if (statementData.foreignTable().isEmpty()) {
                     data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));
@@ -132,17 +123,7 @@ public abstract class HikariStatements<O extends HikariObject> {
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = cachedProcessors.get(field.getName());
-
-                if (processor == null) {
-                    try {
-                        processor = statementData.processor().getDeclaredConstructor().newInstance();
-                        cachedProcessors.put(field.getName(), processor);
-                    } catch (InstantiationException | InvocationTargetException | NoSuchMethodException e) {
-                        e.printStackTrace();
-                        return;
-                    }
-                }
+                FieldProcessor processor = hikariAPI.getFieldProcessor(field.getType());
 
                 if (statementData.foreignTable().isEmpty()) {
                     data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));

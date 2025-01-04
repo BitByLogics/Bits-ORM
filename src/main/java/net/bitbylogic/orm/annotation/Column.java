@@ -1,8 +1,5 @@
 package net.bitbylogic.orm.annotation;
 
-import net.bitbylogic.orm.processor.FieldProcessor;
-import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
-
 import java.lang.annotation.*;
 
 @Target(ElementType.FIELD)
@@ -23,8 +20,6 @@ public @interface Column {
     boolean updateOnSave() default true;
 
     boolean subClass() default false;
-
-    Class<? extends FieldProcessor<?>> processor() default DefaultFieldProcessor.class;
 
     String foreignTable() default "";
 

@@ -13,19 +13,14 @@ import java.lang.reflect.InvocationTargetException;
 @RequiredArgsConstructor
 public enum DatabaseType {
 
-    MYSQL(SQLStatements.class),
-    SQLITE(SQLiteStatements.class);
+    MYSQL,
+    SQLITE;
 
-    private final Class<? extends HikariStatements> statementClass;
-
-    public <O extends HikariObject> HikariStatements<O> getStatements(@NonNull String table) {
-        try {
-            return ReflectionUtil.findAndCallConstructor(statementClass, table);
-        } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-            e.printStackTrace();
-        }
-
-        return null;
+    public <O extends HikariObject> HikariStatements<O> getStatements(@NonNull HikariAPI hikariAPI, @NonNull String table) {
+        return switch (this) {
+            case MYSQL -> new SQLStatements<>(hikariAPI, table);
+            case SQLITE -> new SQLiteStatements<>(hikariAPI, table);
+        };
     }
 
 }

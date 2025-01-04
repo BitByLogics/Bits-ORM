@@ -7,6 +7,8 @@ import lombok.NonNull;
 import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.HikariObject;
 import net.bitbylogic.orm.data.HikariTable;
+import net.bitbylogic.orm.processor.FieldProcessor;
+import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.utils.Pair;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
 import org.jetbrains.annotations.Nullable;
@@ -27,9 +29,12 @@ import java.util.function.Consumer;
 @Getter
 public class HikariAPI {
 
+    private final static DefaultFieldProcessor DEFAULT_FIELD_PROCESSOR = new DefaultFieldProcessor();
+
     private final HikariDataSource dataSource;
     private final DatabaseType type;
 
+    private final HashMap<Class<?>, FieldProcessor<?>> fieldProcessors = new HashMap<>();
     private final HashMap<String, Pair<String, HikariTable<?>>> tables = new HashMap<>();
     private final HashMap<HikariTable<?>, List<String>> pendingTables = new HashMap<>();
 
@@ -264,6 +269,18 @@ public class HikariAPI {
         }
 
         dataSource.close();
+    }
+
+    public <T> void registerFieldProcessor(@NonNull FieldProcessor<T> processor, @NonNull Class<T> classToProcess) {
+        if(fieldProcessors.containsKey(classToProcess)) {
+            return;
+        }
+
+        fieldProcessors.put(classToProcess, processor);
+    }
+
+    public FieldProcessor getFieldProcessor(@NonNull Class<?> fieldClass) {
+        return fieldProcessors.getOrDefault(fieldClass, DEFAULT_FIELD_PROCESSOR);
     }
 
 }

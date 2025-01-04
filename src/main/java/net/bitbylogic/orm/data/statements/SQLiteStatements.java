@@ -1,6 +1,7 @@
 package net.bitbylogic.orm.data.statements;
 
 import lombok.NonNull;
+import net.bitbylogic.orm.HikariAPI;
 import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.HikariObject;
 
@@ -9,8 +10,8 @@ import java.util.Map;
 
 public class SQLiteStatements<O extends HikariObject> extends SQLStatements<O> {
 
-    public SQLiteStatements(String table) {
-        super(table);
+    public SQLiteStatements(@NonNull HikariAPI hikariAPI, @NonNull String table) {
+        super(hikariAPI, table);
     }
 
     @Override

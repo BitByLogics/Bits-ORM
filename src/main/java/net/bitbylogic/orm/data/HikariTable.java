@@ -51,7 +51,7 @@ public class HikariTable<O extends HikariObject> {
         this.loadData = loadData;
         this.objectClass = objectClass;
         this.dataMap = new ConcurrentHashMap<>();
-        this.statements = hikariAPI.getType().getStatements(table);
+        this.statements = hikariAPI.getType().getStatements(hikariAPI, table);
 
         try {
             Constructor<O> emptyConstructor = ReflectionUtil.findConstructor(objectClass);
@@ -356,13 +356,7 @@ public class HikariTable<O extends HikariObject> {
 
             for (ColumnData columnData : statements.getColumnData()) {
                 Column statementData = columnData.getColumn();
-                FieldProcessor processor = ReflectionUtil.findAndCallConstructor(columnData.getColumn().processor());
-
-                if (processor == null) {
-                    log("Unable to load object, invalid processor '" + columnData.getColumn().processor() + ".");
-                    consumer.accept(Optional.empty());
-                    return;
-                }
+                FieldProcessor processor = hikariAPI.getFieldProcessor(columnData.getField().getType());
 
                 Object object = result.getObject(columnData.getName());
                 Class<?> fieldTypeClass = columnData.getField().getType();

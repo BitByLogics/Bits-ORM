@@ -22,6 +22,7 @@ public class ColumnData {
 
     @Setter
     private ColumnData foreignKeyData;
+
     @Setter
     private HikariTable<?> foreignTable;
 

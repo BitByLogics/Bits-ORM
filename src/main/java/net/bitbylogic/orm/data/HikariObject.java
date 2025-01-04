@@ -4,6 +4,7 @@ import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+@SuppressWarnings("ALL")
 @NoArgsConstructor
 public class HikariObject {
 
