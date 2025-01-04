@@ -3,6 +3,8 @@ package net.bitbylogic.orm.util;
 import lombok.RequiredArgsConstructor;
 import net.bitbylogic.utils.StringProcessor;
 
+import java.util.UUID;
+
 @RequiredArgsConstructor
 public enum DataTypeInferencer {
 
@@ -14,7 +16,8 @@ public enum DataTypeInferencer {
     SHORT(new Class[]{Short.class, short.class}, "SMALLINT"),
     BYTE(new Class[]{Byte.class, byte.class}, "TINYINT"),
     BOOLEAN(new Class[]{Boolean.class, boolean.class}, "BOOLEAN"),
-    CHAR(new Class[]{Character.class, char.class}, "CHAR");
+    CHAR(new Class[]{Character.class, char.class}, "CHAR"),
+    UUID(new Class[] {java.util.UUID.class}, "VARCHAR(36)");
 
     private final Class<?>[] dataTypes;
     private final String dataType;
