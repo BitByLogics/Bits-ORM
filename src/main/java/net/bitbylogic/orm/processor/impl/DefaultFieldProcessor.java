@@ -1,8 +1,8 @@
 package net.bitbylogic.orm.processor.impl;
 
-import net.bitbylogic.orm.processor.HikariFieldProcessor;
+import net.bitbylogic.orm.processor.FieldProcessor;
 
-public class DefaultHikariFieldProcessor implements HikariFieldProcessor<Object> {
+public class DefaultFieldProcessor implements FieldProcessor<Object> {
 
     @Override
     public Object parseToObject(Object fieldValue) {

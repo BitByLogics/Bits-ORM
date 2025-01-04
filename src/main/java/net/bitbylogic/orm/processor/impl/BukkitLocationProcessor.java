@@ -1,10 +1,10 @@
 package net.bitbylogic.orm.processor.impl;
 
-import net.bitbylogic.orm.processor.HikariFieldProcessor;
+import net.bitbylogic.orm.processor.FieldProcessor;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
-public class BukkitLocationProcessor implements HikariFieldProcessor<Location> {
+public class BukkitLocationProcessor implements FieldProcessor<Location> {
 
     @Override
     public Object parseToObject(Location location) {

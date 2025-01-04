@@ -1,11 +1,11 @@
 package net.bitbylogic.orm.processor.impl;
 
-import net.bitbylogic.orm.processor.HikariFieldProcessor;
+import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.utils.ListUtil;
 
 import java.util.List;
 
-public class StringListProcessor implements HikariFieldProcessor<List<String>> {
+public class StringListProcessor implements FieldProcessor<List<String>> {
 
     @Override
     public Object parseToObject(List<String> o) {

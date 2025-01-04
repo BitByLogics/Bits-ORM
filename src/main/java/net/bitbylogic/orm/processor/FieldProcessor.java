@@ -1,6 +1,6 @@
 package net.bitbylogic.orm.processor;
 
-public interface HikariFieldProcessor<O> {
+public interface FieldProcessor<O> {
 
     Object parseToObject(O object);
 
