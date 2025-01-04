@@ -62,7 +62,7 @@
         <repository>
             <id>github</id>
             <name>GitHub BitByLogics Maven Packages</name>
-            <url>https://maven.pkg.github.com/bitbylogics/bits-template</url>
+            <url>https://maven.pkg.github.com/bitbylogics/bits-orm</url>
         </repository>
     </distributionManagement>
 
