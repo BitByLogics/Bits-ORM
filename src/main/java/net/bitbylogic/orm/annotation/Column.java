@@ -14,7 +14,7 @@ public @interface Column {
 
     String name() default "";
 
-    boolean allowNull() default true;
+    boolean allowNull() default false;
 
     boolean autoIncrement() default false;
 
