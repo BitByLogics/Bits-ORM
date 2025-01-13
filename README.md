@@ -19,7 +19,7 @@ An API for mapping Java objects to SQL, enabling seamless saving and loading of 
 * Seamless data synchronization using Redis (Bit's RPS)
 
 ## IMPORTANT
-In order for BORM to work, you must keep add the parameters flag when compiling!
+In order for BORM to work, you must add the parameters flag when compiling!
 
 ### For Maven
 ```xml
