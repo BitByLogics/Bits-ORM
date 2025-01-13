@@ -116,6 +116,8 @@ annotation. Any fields missing the Column annotation will be ignored by the tabl
 
 The annotation has various attributes that can be defined which changes how the column will be created. You can find a list of Column attributes after this example.
 
+**IMPORTANT** `In order for BORM to work, the object MUST have an empty constructor and a constructor with all fields defined with the column annotation!`
+
 ```java
 import net.bitbylogic.orm.annotation.Column;
 import net.bitbylogic.orm.data.BormObject;
