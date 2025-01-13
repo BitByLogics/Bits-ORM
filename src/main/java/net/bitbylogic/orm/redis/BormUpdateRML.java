@@ -1,7 +1,7 @@
 package net.bitbylogic.orm.redis;
 
-import net.bitbylogic.orm.data.HikariObject;
-import net.bitbylogic.orm.data.HikariTable;
+import net.bitbylogic.orm.data.BormObject;
+import net.bitbylogic.orm.data.BormTable;
 import net.bitbylogic.rps.listener.ListenerComponent;
 import net.bitbylogic.rps.listener.RedisMessageListener;
 
@@ -10,21 +10,21 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-public class HikariUpdateRML<O extends HikariObject> extends RedisMessageListener {
+public class BormUpdateRML<O extends BormObject> extends RedisMessageListener {
 
-    private final HikariTable<O> hikariTable;
+    private final BormTable<O> bormTable;
 
-    public HikariUpdateRML(HikariTable<O> hikariTable) {
-        super("hikari-update");
-        this.hikariTable = hikariTable;
+    public BormUpdateRML(BormTable<O> bormTable) {
+        super("borm-update");
+        this.bormTable = bormTable;
     }
 
     @Override
     public void onReceive(ListenerComponent component) {
-        HikariRedisUpdateType updateType = component.getData("updateType", HikariRedisUpdateType.class);
+        BormRedisUpdateType updateType = component.getData("updateType", BormRedisUpdateType.class);
         String objectId = component.getData("objectId", String.class);
 
-        Optional<O> optionalObject = hikariTable.getDataById(objectId);
+        Optional<O> optionalObject = bormTable.getDataById(objectId);
 
         if (optionalObject.isEmpty()) {
             return;
@@ -37,11 +37,11 @@ public class HikariUpdateRML<O extends HikariObject> extends RedisMessageListene
         CompletableFuture.runAsync(() -> {
             switch (updateType) {
                 case SAVE:
-                    hikariTable.getDataMap().remove(hikariTable.getStatements().getId(object));
-                    hikariTable.getDataFromDB(objectId, true, true, o -> {});
+                    bormTable.getDataMap().remove(bormTable.getStatements().getId(object));
+                    bormTable.getDataFromDB(objectId, true, true, o -> {});
                     break;
                 case DELETE:
-                    hikariTable.getDataMap().remove(hikariTable.getStatements().getId(object));
+                    bormTable.getDataMap().remove(bormTable.getStatements().getId(object));
                     break;
                 default:
                     break;

@@ -5,8 +5,8 @@ import com.zaxxer.hikari.HikariDataSource;
 import lombok.Getter;
 import lombok.NonNull;
 import net.bitbylogic.orm.data.ColumnData;
-import net.bitbylogic.orm.data.HikariObject;
-import net.bitbylogic.orm.data.HikariTable;
+import net.bitbylogic.orm.data.BormObject;
+import net.bitbylogic.orm.data.BormTable;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.processor.impl.StringListProcessor;
@@ -29,7 +29,7 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 
 @Getter
-public class HikariAPI {
+public class BormAPI {
 
     private final static DefaultFieldProcessor DEFAULT_FIELD_PROCESSOR = new DefaultFieldProcessor();
 
@@ -37,11 +37,11 @@ public class HikariAPI {
     private final DatabaseType type;
 
     private final HashMap<TypeToken<?>, FieldProcessor<?>> fieldProcessors = new HashMap<>();
-    private final HashMap<String, Pair<String, HikariTable<?>>> tables = new HashMap<>();
-    private final HashMap<HikariTable<?>, List<String>> pendingTables = new HashMap<>();
+    private final HashMap<String, Pair<String, BormTable<?>>> tables = new HashMap<>();
+    private final HashMap<BormTable<?>, List<String>> pendingTables = new HashMap<>();
 
-    public HikariAPI(@NonNull String address, @NonNull String database,
-                     @NonNull String port, @NonNull String username, @NonNull String password) {
+    public BormAPI(@NonNull String address, @NonNull String database,
+                   @NonNull String port, @NonNull String username, @NonNull String password) {
         this.type = DatabaseType.MYSQL;
 
         HikariConfig config = new HikariConfig();
@@ -62,7 +62,7 @@ public class HikariAPI {
         registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
     }
 
-    public HikariAPI(@NonNull HikariConfig config) {
+    public BormAPI(@NonNull HikariConfig config) {
         this.type = config.getJdbcUrl().contains("sqlite") ? DatabaseType.SQLITE : DatabaseType.MYSQL;
 
         dataSource = new HikariDataSource(config);
@@ -70,14 +70,14 @@ public class HikariAPI {
         registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
     }
 
-    public HikariAPI(@NonNull File databaseFile) {
+    public BormAPI(@NonNull File databaseFile) {
         this.type = DatabaseType.SQLITE;
 
         if (!databaseFile.exists()) {
             try {
                 databaseFile.createNewFile();
             } catch (IOException e) {
-                System.out.println("[HikariAPI]: Unable to find database file!");
+                System.out.println("[BORM]: Unable to find database file!");
                 dataSource = null;
                 return;
             }
@@ -97,9 +97,9 @@ public class HikariAPI {
         registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
     }
 
-    public <O extends HikariObject, T extends HikariTable<O>> void registerTable(Class<? extends T> tableClass, Consumer<T> consumer) {
+    public <O extends BormObject, T extends BormTable<O>> void registerTable(Class<? extends T> tableClass, Consumer<T> consumer) {
         if (tables.containsKey(tableClass.getSimpleName())) {
-            System.out.println("[HikariAPI]: Couldn't register table " + tableClass.getSimpleName() + ", it's already registered.");
+            System.out.println("[BORM]: Couldn't register table " + tableClass.getSimpleName() + ", it's already registered.");
             return;
         }
 
@@ -109,7 +109,7 @@ public class HikariAPI {
                     T table = ReflectionUtil.findAndCallConstructor(tableClass, this);
 
                     if (table == null || table.getTable() == null) {
-                        System.out.println("[HikariAPI]: Unable to create instance of table " + tableClass.getSimpleName() + "!");
+                        System.out.println("[BORM]: Unable to create instance of table " + tableClass.getSimpleName() + "!");
                         return;
                     }
 
@@ -119,13 +119,13 @@ public class HikariAPI {
                         }
 
                         String foreignTableName = columnData.getColumn().foreignTable();
-                        HikariTable<?> foreignTable = getTable(foreignTableName);
+                        BormTable<?> foreignTable = getTable(foreignTableName);
 
                         if (foreignTable == null) {
                             List<String> tables = pendingTables.getOrDefault(table, new ArrayList<>());
                             tables.add(foreignTableName);
                             pendingTables.put(table, tables);
-                            System.out.println("[HikariAPI]: Table " + table.getTable() + " requires " + foreignTableName + " and will be loaded when it's loaded!");
+                            System.out.println("[BORM]: Table " + table.getTable() + " requires " + foreignTableName + " and will be loaded when it's loaded!");
                             getTables().put(tableClass.getSimpleName(), new Pair<>(table.getTable(), table));
                             consumer.accept(table);
                             return;
@@ -140,17 +140,17 @@ public class HikariAPI {
 
                     consumer.accept(table);
                 } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-                    System.out.println("[HikariAPI]: Couldn't create instance of table " + tableClass.getSimpleName() + "!");
+                    System.out.println("[BORM]: Couldn't create instance of table " + tableClass.getSimpleName() + "!");
                     e.printStackTrace();
                 }
             });
         }
     }
 
-    private synchronized void loadTable(@NonNull HikariTable<?> table) {
+    private synchronized void loadTable(@NonNull BormTable<?> table) {
         executeStatement(table.getStatements().getTableCreateStatement(), resultSet -> {
             if (!table.isLoadData()) {
-                System.out.println("[HikariAPI] [" + table.getClass().getSimpleName() + "]: Finished retrieving data.");
+                System.out.println("[BORM] [" + table.getClass().getSimpleName() + "]: Finished retrieving data.");
                 checkForeignTables(table);
                 return;
             }
@@ -161,11 +161,11 @@ public class HikariAPI {
         });
     }
 
-    private synchronized void checkForeignTables(@NonNull HikariTable<?> table) {
-        Iterator<Map.Entry<HikariTable<?>, List<String>>> iterator = pendingTables.entrySet().iterator();
+    private synchronized void checkForeignTables(@NonNull BormTable<?> table) {
+        Iterator<Map.Entry<BormTable<?>, List<String>>> iterator = pendingTables.entrySet().iterator();
 
         while (iterator.hasNext()) {
-            Map.Entry<HikariTable<?>, List<String>> entry = iterator.next();
+            Map.Entry<BormTable<?>, List<String>> entry = iterator.next();
 
             if (!entry.getValue().contains(table.getTable())) {
                 continue;
@@ -174,7 +174,7 @@ public class HikariAPI {
             List<String> newTables = new ArrayList<>(entry.getValue());
             newTables.remove(table.getTable());
 
-            HikariTable<?> pendingTable = entry.getKey();
+            BormTable<?> pendingTable = entry.getKey();
 
             if (!newTables.isEmpty()) {
                 pendingTables.put(pendingTable, newTables);
@@ -193,13 +193,13 @@ public class HikariAPI {
             loadTable(pendingTable);
             iterator.remove();
 
-            System.out.println("[HikariAPI]: All foreign tables loaded for " + pendingTable.getTable() + ", it will now be loaded!");
+            System.out.println("[BORM]: All foreign tables loaded for " + pendingTable.getTable() + ", it will now be loaded!");
         }
     }
 
-    public HikariTable<?> getTable(@NonNull String tableName) {
+    public BormTable<?> getTable(@NonNull String tableName) {
         return tables.values().stream()
-                .filter(stringHikariTablePair -> stringHikariTablePair.getKey().equalsIgnoreCase(tableName))
+                .filter(tablePair -> tablePair.getKey().equalsIgnoreCase(tableName))
                 .map(Pair::getValue).findFirst().orElse(null);
     }
 
@@ -235,7 +235,7 @@ public class HikariAPI {
                 return null;
             }
 
-            System.out.println("[HikariAPI]: Issue executing statement: " + query);
+            System.out.println("[BORM]: Issue executing statement: " + query);
             e.printStackTrace();
             return null;
         });
@@ -265,7 +265,7 @@ public class HikariAPI {
                 return null;
             }
 
-            System.out.println("[HikariAPI]: Issue executing statement: " + query);
+            System.out.println("[BORM]: Issue executing statement: " + query);
             e.printStackTrace();
             return null;
         });

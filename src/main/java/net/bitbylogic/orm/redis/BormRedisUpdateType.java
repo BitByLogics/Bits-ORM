@@ -1,6 +1,6 @@
 package net.bitbylogic.orm.redis;
 
-public enum HikariRedisUpdateType {
+public enum BormRedisUpdateType {
 
     SAVE,
     DELETE;

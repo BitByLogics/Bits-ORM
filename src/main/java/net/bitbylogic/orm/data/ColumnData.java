@@ -24,18 +24,18 @@ public class ColumnData {
     private ColumnData foreignKeyData;
 
     @Setter
-    private HikariTable<?> foreignTable;
+    private BormTable<?> foreignTable;
 
     public String getName() {
         if (column.name().isEmpty()) {
-            return column.subClass() ? parentClassName + "_" + field.getName() : field.getName();
+            return !column.foreignTable().isEmpty() ? parentClassName + "_" + field.getName() : field.getName();
         }
 
         return column.name();
     }
 
     public String getDataType() {
-        return column.subClass() ? foreignKeyData.getDataType() : column.dataType().isEmpty()
+        return !column.foreignTable().isEmpty() ? foreignKeyData.getDataType() : column.dataType().isEmpty()
                 ? DataTypeInferencer.inferDataType(field.getType()) : column.dataType();
     }
 

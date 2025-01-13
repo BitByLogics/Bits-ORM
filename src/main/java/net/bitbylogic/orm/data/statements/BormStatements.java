@@ -3,11 +3,11 @@ package net.bitbylogic.orm.data.statements;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import net.bitbylogic.orm.HikariAPI;
+import net.bitbylogic.orm.BormAPI;
 import net.bitbylogic.orm.annotation.Column;
 import net.bitbylogic.orm.data.ColumnData;
-import net.bitbylogic.orm.data.HikariObject;
-import net.bitbylogic.orm.data.HikariTable;
+import net.bitbylogic.orm.data.BormObject;
+import net.bitbylogic.orm.data.BormTable;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.utils.HashMapUtil;
@@ -15,16 +15,15 @@ import net.bitbylogic.utils.ListUtil;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
 
 @RequiredArgsConstructor
 @Getter
-public abstract class HikariStatements<O extends HikariObject> {
+public abstract class BormStatements<O extends BormObject> {
 
-    private final HikariAPI hikariAPI;
+    private final BormAPI bormAPI;
     private final String tableName;
 
     private final List<ColumnData> columnData = new ArrayList<>();
@@ -45,14 +44,14 @@ public abstract class HikariStatements<O extends HikariObject> {
             Column data = field.getAnnotation(Column.class);
 
             if (!data.foreignTable().isEmpty() &&
-                    (!field.getType().isInstance(HikariObject.class) &&
-                            !ReflectionUtil.isListOf(field, HikariObject.class) &&
-                            !ReflectionUtil.isMapOf(field, HikariObject.class))) {
-                System.out.println("(HikariObject): Skipped field " + field.getName() + ", foreign classes must contain HikariObject!");
+                    (!field.getType().isInstance(BormObject.class) &&
+                            !ReflectionUtil.isListOf(field, BormObject.class) &&
+                            !ReflectionUtil.isMapOf(field, BormObject.class))) {
+                System.out.println("(" + object.getClass().getSimpleName() + "): Skipped field " + field.getName() + ", foreign classes must extend BormObject!");
                 return;
             }
 
-            if (data.subClass()) {
+            if (!data.foreignTable().isEmpty()) {
                 try {
                     field.setAccessible(true);
                     parentObjectFields.add(field.getName());
@@ -94,10 +93,10 @@ public abstract class HikariStatements<O extends HikariObject> {
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = hikariAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                 if (statementData.foreignTable().isEmpty()) {
-                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));
+                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.processTo(fieldValue) + "'"));
                     return;
                 }
 
@@ -124,10 +123,10 @@ public abstract class HikariStatements<O extends HikariObject> {
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = hikariAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                 if (statementData.foreignTable().isEmpty()) {
-                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));
+                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.processTo(fieldValue) + "'"));
                     return;
                 }
 
@@ -161,7 +160,7 @@ public abstract class HikariStatements<O extends HikariObject> {
         return object;
     }
 
-    public Object getId(HikariObject object) {
+    public Object getId(BormObject object) {
         try {
             Field primaryKeyField = getPrimaryKeyData().getField();
             primaryKeyField.setAccessible(true);
@@ -181,16 +180,16 @@ public abstract class HikariStatements<O extends HikariObject> {
         field.setAccessible(true);
 
         try {
-            HikariTable<?> foreignTable = columnData.getForeignTable();
+            BormTable<?> foreignTable = columnData.getForeignTable();
             Object fieldValue = field.get(object);
 
             if (foreignTable == null) {
-                System.out.println("(HikariAPI): Missing foreign table: " + columnData.getColumn().foreignTable());
+                System.out.println("[BORM]: Missing foreign table: " + columnData.getColumn().foreignTable());
                 return null;
             }
 
-            if (field.getType().isInstance(HikariObject.class)) {
-                return foreignTable.getStatements().getId((HikariObject) fieldValue);
+            if (field.getType().isInstance(BormObject.class)) {
+                return foreignTable.getStatements().getId((BormObject) fieldValue);
             }
 
             Type fieldType = field.getGenericType();
@@ -199,9 +198,9 @@ public abstract class HikariStatements<O extends HikariObject> {
                 Class<?> fieldClass = (Class<?>) parameterizedType.getRawType();
 
                 if (List.class.isAssignableFrom(fieldClass)) {
-                    List<HikariObject> list = (List<HikariObject>) fieldValue;
+                    List<BormObject> list = (List<BormObject>) fieldValue;
                     List<Object> newList = new ArrayList<>();
-                    list.forEach(hikariObject -> newList.add(foreignTable.getStatements().getId(hikariObject)));
+                    list.forEach(bormObject -> newList.add(foreignTable.getStatements().getId(bormObject)));
 
                     return ListUtil.listToString(newList);
                 }
@@ -210,7 +209,7 @@ public abstract class HikariStatements<O extends HikariObject> {
                     return fieldValue;
                 }
 
-                Map<Object, HikariObject> map = (Map<Object, HikariObject>) fieldValue;
+                Map<Object, BormObject> map = (Map<Object, BormObject>) fieldValue;
                 HashMap<Object, Object> newMap = new HashMap<>();
                 map.forEach((key, value) -> newMap.put(key, foreignTable.getStatements().getId(value)));
 

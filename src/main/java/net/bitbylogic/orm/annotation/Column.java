@@ -19,10 +19,8 @@ public @interface Column {
 
     boolean updateOnSave() default true;
 
-    boolean subClass() default false;
-
     String foreignTable() default "";
 
-    boolean foreignDelete() default false;
+    boolean cascadeDelete() default false;
 
 }

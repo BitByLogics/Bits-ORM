@@ -9,12 +9,12 @@ import java.util.List;
 public class StringListProcessor implements FieldProcessor<List<String>> {
 
     @Override
-    public Object parseToObject(List<String> o) {
+    public Object processTo(List<String> o) {
         return ListUtil.listToString(o);
     }
 
     @Override
-    public List<String> parseFromObject(Object o) {
+    public List<String> processFrom(Object o) {
         return (List<String>) ListUtil.stringToList((String) o);
     }
 

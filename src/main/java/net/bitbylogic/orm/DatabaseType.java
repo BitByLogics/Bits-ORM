@@ -2,13 +2,10 @@ package net.bitbylogic.orm;
 
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import net.bitbylogic.orm.data.HikariObject;
-import net.bitbylogic.orm.data.statements.HikariStatements;
+import net.bitbylogic.orm.data.BormObject;
+import net.bitbylogic.orm.data.statements.BormStatements;
 import net.bitbylogic.orm.data.statements.SQLStatements;
 import net.bitbylogic.orm.data.statements.SQLiteStatements;
-import net.bitbylogic.utils.reflection.ReflectionUtil;
-
-import java.lang.reflect.InvocationTargetException;
 
 @RequiredArgsConstructor
 public enum DatabaseType {
@@ -16,10 +13,10 @@ public enum DatabaseType {
     MYSQL,
     SQLITE;
 
-    public <O extends HikariObject> HikariStatements<O> getStatements(@NonNull HikariAPI hikariAPI, @NonNull String table) {
+    public <O extends BormObject> BormStatements<O> getStatements(@NonNull BormAPI bormAPI, @NonNull String table) {
         return switch (this) {
-            case MYSQL -> new SQLStatements<>(hikariAPI, table);
-            case SQLITE -> new SQLiteStatements<>(hikariAPI, table);
+            case MYSQL -> new SQLStatements<>(bormAPI, table);
+            case SQLITE -> new SQLiteStatements<>(bormAPI, table);
         };
     }
 

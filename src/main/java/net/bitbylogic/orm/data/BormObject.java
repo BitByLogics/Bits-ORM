@@ -6,10 +6,10 @@ import lombok.Setter;
 
 @SuppressWarnings("ALL")
 @NoArgsConstructor
-public class HikariObject {
+public class BormObject {
 
     @Setter(AccessLevel.PROTECTED)
-    protected HikariTable owningTable;
+    protected BormTable owningTable;
 
     public void save() {
         if(owningTable == null) {

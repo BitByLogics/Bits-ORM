@@ -2,25 +2,24 @@ package net.bitbylogic.orm.data.statements;
 
 import lombok.Getter;
 import lombok.NonNull;
-import net.bitbylogic.orm.HikariAPI;
+import net.bitbylogic.orm.BormAPI;
 import net.bitbylogic.orm.annotation.Column;
 import net.bitbylogic.orm.data.ColumnData;
-import net.bitbylogic.orm.data.HikariObject;
+import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.util.TypeToken;
 
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 @Getter
-public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
+public class SQLStatements<O extends BormObject> extends BormStatements<O> {
 
-    public SQLStatements(@NonNull HikariAPI hikariAPI, @NonNull String table) {
-        super(hikariAPI, table);
+    public SQLStatements(@NonNull BormAPI bormAPI, @NonNull String table) {
+        super(bormAPI, table);
     }
 
     @Override
@@ -69,7 +68,7 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
     @Override
     public String getDataDeleteStatement(O object) {
         if (getColumnData().stream().noneMatch(columnData -> columnData.getColumn().primaryKey())) {
-            System.out.printf("[APIByLogic] [HikariAPI] (%s) No primary key, aborting.%n", getTableName());
+            System.out.printf("[APIByLogic] [BORM] (%s) No primary key, aborting.%n", getTableName());
             return null;
         }
 
@@ -87,10 +86,10 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
                         field.setAccessible(true);
                         Object fieldValue = field.get(fieldObject);
 
-                        FieldProcessor processor = getHikariAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                        FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                         if (statementData.foreignTable().isEmpty()) {
-                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));
+                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + processor.processTo(fieldValue) + "'"));
                             return;
                         }
 
@@ -152,10 +151,10 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
                 field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = getHikariAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                 if (statementData.foreignTable().isEmpty()) {
-                    entries.add(String.format("key= %s", fieldValue == null ? null : "'" + processor.parseToObject(fieldValue) + "'"));
+                    entries.add(String.format("key= %s", fieldValue == null ? null : "'" + processor.processTo(fieldValue) + "'"));
                     return;
                 }
 
@@ -177,10 +176,10 @@ public class SQLStatements<O extends HikariObject> extends HikariStatements<O> {
 
                         builder.append(String.join(", ", entries)).append(" WHERE ").append(columnData.getName()).append(" = ");
 
-                        FieldProcessor processor = getHikariAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                        FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                         if (statementData.foreignTable().isEmpty()) {
-                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + processor.parseToObject(fieldValue) + "'"));
+                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + processor.processTo(fieldValue) + "'"));
                             return;
                         }
 

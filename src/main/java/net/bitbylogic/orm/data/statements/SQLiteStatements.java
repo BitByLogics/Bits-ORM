@@ -1,17 +1,17 @@
 package net.bitbylogic.orm.data.statements;
 
 import lombok.NonNull;
-import net.bitbylogic.orm.HikariAPI;
+import net.bitbylogic.orm.BormAPI;
 import net.bitbylogic.orm.data.ColumnData;
-import net.bitbylogic.orm.data.HikariObject;
+import net.bitbylogic.orm.data.BormObject;
 
 import java.util.List;
 import java.util.Map;
 
-public class SQLiteStatements<O extends HikariObject> extends SQLStatements<O> {
+public class SQLiteStatements<O extends BormObject> extends SQLStatements<O> {
 
-    public SQLiteStatements(@NonNull HikariAPI hikariAPI, @NonNull String table) {
-        super(hikariAPI, table);
+    public SQLiteStatements(@NonNull BormAPI bormAPI, @NonNull String table) {
+        super(bormAPI, table);
     }
 
     @Override

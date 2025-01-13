@@ -5,7 +5,7 @@ import net.bitbylogic.orm.processor.FieldProcessor;
 public class DefaultFieldProcessor implements FieldProcessor<Object> {
 
     @Override
-    public Object parseToObject(Object fieldValue) {
+    public Object processTo(Object fieldValue) {
         if (fieldValue instanceof Boolean) {
             return String.valueOf((Boolean) fieldValue ? 1 : 0);
         }
@@ -14,7 +14,7 @@ public class DefaultFieldProcessor implements FieldProcessor<Object> {
     }
 
     @Override
-    public Object parseFromObject(Object object) {
+    public Object processFrom(Object object) {
         return object;
     }
 

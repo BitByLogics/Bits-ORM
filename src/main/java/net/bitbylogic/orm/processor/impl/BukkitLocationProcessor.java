@@ -7,7 +7,7 @@ import org.bukkit.Location;
 public class BukkitLocationProcessor implements FieldProcessor<Location> {
 
     @Override
-    public Object parseToObject(Location location) {
+    public Object processTo(Location location) {
         if(location.getWorld() == null) {
             return "NULL";
         }
@@ -16,7 +16,7 @@ public class BukkitLocationProcessor implements FieldProcessor<Location> {
     }
 
     @Override
-    public Location parseFromObject(Object object) {
+    public Location processFrom(Object object) {
         String[] splitArgs = ((String) object).split(":");
         return new Location(Bukkit.getWorld(splitArgs[0]), Double.parseDouble(splitArgs[1]), Double.parseDouble(splitArgs[2]), Double.parseDouble(splitArgs[3]));
     }
