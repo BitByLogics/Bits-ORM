@@ -18,6 +18,58 @@ An API for mapping Java objects to SQL, enabling seamless saving and loading of 
 * SQL and SQLite support natively
 * Seamless data synchronization using Redis (Bit's RPS)
 
+## IMPORTANT
+In order for BORM to work, you must keep add the parameters flag when compiling!
+
+### For Maven
+```xml
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <source>${java.version}</source>
+                    <target>${java.version}</target>
+                    <compilerArgs>
+                        <arg>-parameters</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+```
+
+## Maven Dependency and repository
+To use BORM, you simply need to shade the API into your project!
+
+```xml
+		<repository>
+		    <id>jitpack.io</id>
+		    <url>https://jitpack.io</url>
+		</repository>
+```
+
+```xml
+	<dependency>
+	    <groupId>com.github.BitByLogics</groupId>
+	    <artifactId>Bits-ORM</artifactId>
+	    <version>1.0.0</version>
+	</dependency>
+```
+
+## Or, for Gradle
+```kotlin
+repsitories {
+    maven {
+        url = uri("https://jitpack.io")
+    }
+}
+```
+
+```kotlin
+dependencies {
+    compileOnly("com.github.BitByLogics:Bits-ORM:1.0.0")
+}
+```
+
 ## Usage
 ### Using `BORM` is simple! Below is an example usage of the API and its capabilities.
 
