@@ -132,6 +132,10 @@ public class ExampleUser extends BormObject {
     @Column
     private long creationDate;
 
+    public ExampleUser() {
+
+    }
+
     public ExampleUser(UUID id) {
         this.id = id;
         this.creationDate = System.currentTimeMillis();
