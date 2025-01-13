@@ -357,7 +357,7 @@ public class HikariTable<O extends HikariObject> {
 
             for (ColumnData columnData : statements.getColumnData()) {
                 Column statementData = columnData.getColumn();
-                FieldProcessor processor = hikariAPI.getFieldProcessor(TypeToken.asTypeToken(columnData.getField().getType()));
+                FieldProcessor processor = hikariAPI.getFieldProcessor(TypeToken.asTypeToken(columnData.getField().getGenericType()));
 
                 Object object = result.getObject(columnData.getName());
                 Class<?> fieldTypeClass = columnData.getField().getType();

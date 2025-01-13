@@ -287,8 +287,15 @@ public class HikariAPI {
         fieldProcessors.put(type, processor);
     }
 
+    // Not a great solution, will revisit later.
     public FieldProcessor<?> getFieldProcessor(@NonNull TypeToken<?> type) {
-        return fieldProcessors.getOrDefault(type, DEFAULT_FIELD_PROCESSOR);
+        for (Map.Entry<TypeToken<?>, FieldProcessor<?>> entry : fieldProcessors.entrySet()) {
+            if(entry.getKey().getType().getTypeName().equalsIgnoreCase(type.getType().getTypeName())) {
+                return entry.getValue();
+            }
+        }
+
+        return DEFAULT_FIELD_PROCESSOR;
     }
 
 }
