@@ -4,6 +4,7 @@ import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
 import lombok.Getter;
 import lombok.NonNull;
+import lombok.Setter;
 import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.data.BormTable;
@@ -34,11 +35,13 @@ public class BormAPI {
     private final static DefaultFieldProcessor DEFAULT_FIELD_PROCESSOR = new DefaultFieldProcessor();
 
     private final HikariDataSource dataSource;
-    private final DatabaseType type;
 
     private final HashMap<TypeToken<?>, FieldProcessor<?>> fieldProcessors = new HashMap<>();
     private final HashMap<String, Pair<String, BormTable<?>>> tables = new HashMap<>();
     private final HashMap<BormTable<?>, List<String>> pendingTables = new HashMap<>();
+
+    @Setter
+    private DatabaseType type;
 
     public BormAPI(@NonNull String address, @NonNull String database,
                    @NonNull String port, @NonNull String username, @NonNull String password) {
