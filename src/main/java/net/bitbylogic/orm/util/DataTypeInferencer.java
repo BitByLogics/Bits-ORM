@@ -17,6 +17,7 @@ public enum DataTypeInferencer {
     BYTE(new Class[]{Byte.class, byte.class}, "TINYINT"),
     BOOLEAN(new Class[]{Boolean.class, boolean.class}, "BOOLEAN"),
     CHAR(new Class[]{Character.class, char.class}, "CHAR"),
+    STRING(new Class[] {String.class}, "TEXT"),
     UUID(new Class[] {java.util.UUID.class}, "VARCHAR(36)");
 
     private final Class<?>[] dataTypes;
