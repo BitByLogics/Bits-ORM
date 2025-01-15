@@ -57,7 +57,7 @@ To use BORM, you simply need to shade the API into your project!
 
 ## Or, for Gradle
 ```kotlin
-repsitories {
+repositories {
     maven {
         url = uri("https://jitpack.io")
     }
