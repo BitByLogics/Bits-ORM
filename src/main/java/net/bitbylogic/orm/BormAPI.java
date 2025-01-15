@@ -11,6 +11,7 @@ import net.bitbylogic.orm.data.BormTable;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.processor.impl.StringListProcessor;
+import net.bitbylogic.orm.redis.BormRedisHook;
 import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.utils.Pair;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
@@ -42,6 +43,9 @@ public class BormAPI {
 
     @Setter
     private DatabaseType type;
+
+    @Setter
+    private @Nullable BormRedisHook redisHook;
 
     public BormAPI(@NonNull String address, @NonNull String database,
                    @NonNull String port, @NonNull String username, @NonNull String password) {

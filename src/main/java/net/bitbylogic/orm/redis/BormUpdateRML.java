@@ -1,5 +1,7 @@
 package net.bitbylogic.orm.redis;
 
+import lombok.NonNull;
+import net.bitbylogic.orm.BormAPI;
 import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.data.BormTable;
 import net.bitbylogic.rps.listener.ListenerComponent;
@@ -10,28 +12,34 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-public class BormUpdateRML<O extends BormObject> extends RedisMessageListener {
+public class BormUpdateRML extends RedisMessageListener {
 
-    private final BormTable<O> bormTable;
+    private final @NonNull BormAPI bormAPI;
 
-    public BormUpdateRML(BormTable<O> bormTable) {
+    public BormUpdateRML(@NonNull BormAPI bormAPI) {
         super("borm-update");
-        this.bormTable = bormTable;
+        this.bormAPI = bormAPI;
     }
 
     @Override
     public void onReceive(ListenerComponent component) {
         BormRedisUpdateType updateType = component.getData("updateType", BormRedisUpdateType.class);
+        String tableName = component.getData("tableName", String.class);
         String objectId = component.getData("objectId", String.class);
 
-        Optional<O> optionalObject = bormTable.getDataById(objectId);
+        BormTable bormTable = bormAPI.getTable(tableName);
+
+        if(bormTable == null) {
+            return;
+        }
+
+        Optional<BormObject> optionalObject = bormTable.getDataById(objectId);
 
         if (optionalObject.isEmpty()) {
             return;
         }
 
-        O object = optionalObject.get();
-
+        BormObject object = optionalObject.get();
         Executor delayedExecutor = CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS);
 
         CompletableFuture.runAsync(() -> {

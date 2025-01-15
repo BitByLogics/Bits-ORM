@@ -8,10 +8,7 @@ import net.bitbylogic.orm.data.statements.BormStatements;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.redis.BormRedisUpdateType;
-import net.bitbylogic.orm.redis.BormUpdateRML;
 import net.bitbylogic.orm.util.TypeToken;
-import net.bitbylogic.rps.client.RedisClient;
-import net.bitbylogic.rps.listener.ListenerComponent;
 import net.bitbylogic.utils.HashMapUtil;
 import net.bitbylogic.utils.ListUtil;
 import net.bitbylogic.utils.Pair;
@@ -44,7 +41,6 @@ public class BormTable<O extends BormObject> {
     private final BormStatements<O> statements;
 
     private Constructor<O> objectConstructor;
-    private RedisClient redisClient;
 
     public BormTable(BormAPI bormAPI, Class<O> objectClass, String table, boolean loadData) {
         this.bormAPI = bormAPI;
@@ -180,12 +176,11 @@ public class BormTable<O extends BormObject> {
                 callback.accept(Optional.of(result));
             }
 
-            if (redisClient == null) {
+            if (bormAPI.getRedisHook() == null) {
                 return;
             }
 
-            redisClient.sendListenerMessage(new ListenerComponent("", "borm-update")
-                    .addData("updateType", BormRedisUpdateType.SAVE).addData("objectId", statements.getId(object).toString()));
+            bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE, table, statements.getId(object).toString());
         });
     }
 
@@ -242,10 +237,11 @@ public class BormTable<O extends BormObject> {
         bormAPI.executeStatement(statements.getDataDeleteStatement(object), rs -> {
             onDataDeleted(object);
 
-            if (redisClient != null) {
-                redisClient.sendListenerMessage(new ListenerComponent("", "borm-update")
-                        .addData("updateType", BormRedisUpdateType.DELETE).addData("objectId", statements.getId(object).toString()));
+            if (bormAPI.getRedisHook() == null) {
+                return;
             }
+
+            bormAPI.getRedisHook().sendChange(BormRedisUpdateType.DELETE, table, statements.getId(object).toString());
         });
     }
 
@@ -485,11 +481,6 @@ public class BormTable<O extends BormObject> {
                 throw new RuntimeException(exception);
             }
         });
-    }
-
-    public void registerRedisHook(RedisClient redisClient) {
-        this.redisClient = redisClient;
-        redisClient.registerListener(new BormUpdateRML<O>(this));
     }
 
     private void log(@NonNull String message) {

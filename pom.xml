@@ -87,6 +87,7 @@
             <groupId>com.github.BitByLogics</groupId>
             <artifactId>Bits-RPS</artifactId>
             <version>1.0.0</version>
+            <scope>provided</scope>
         </dependency>
 
         <!-- HikariCP -->
