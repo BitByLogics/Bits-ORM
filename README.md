@@ -66,7 +66,7 @@ repositories {
 
 ```kotlin
 dependencies {
-    compileOnly("com.github.BitByLogics:Bits-ORM:1.0.0")
+    implementation("com.github.BitByLogics:Bits-ORM:1.0.0")
 }
 ```
 
