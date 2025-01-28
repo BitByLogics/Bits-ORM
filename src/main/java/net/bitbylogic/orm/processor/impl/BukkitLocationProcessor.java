@@ -8,7 +8,7 @@ public class BukkitLocationProcessor implements FieldProcessor<Location> {
 
     @Override
     public Object processTo(Location location) {
-        if(location.getWorld() == null) {
+        if(location == null || location.getWorld() == null) {
             return "NULL";
         }
 
@@ -17,6 +17,10 @@ public class BukkitLocationProcessor implements FieldProcessor<Location> {
 
     @Override
     public Location processFrom(Object object) {
+        if(object == null) {
+            return null;
+        }
+
         String[] splitArgs = ((String) object).split(":");
         return new Location(Bukkit.getWorld(splitArgs[0]), Double.parseDouble(splitArgs[1]), Double.parseDouble(splitArgs[2]), Double.parseDouble(splitArgs[3]));
     }
