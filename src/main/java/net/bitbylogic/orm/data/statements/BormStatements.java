@@ -47,11 +47,11 @@ public abstract class BormStatements<O extends BormObject> {
                     (!field.getType().isInstance(BormObject.class) &&
                             !ReflectionUtil.isListOf(field, BormObject.class) &&
                             !ReflectionUtil.isMapOf(field, BormObject.class))) {
-                System.out.println("(" + object.getClass().getSimpleName() + "): Skipped field " + field.getName() + ", foreign classes must extend BormObject!");
+                getBormAPI().getLogger().warning("(" + object.getClass().getSimpleName() + "): Skipped field " + field.getName() + ", foreign classes must extend BormObject!");
                 return;
             }
 
-            if (!data.foreignTable().isEmpty()) {
+            if (data.subClass()) {
                 try {
                     field.setAccessible(true);
                     parentObjectFields.add(field.getName());
@@ -66,6 +66,10 @@ public abstract class BormStatements<O extends BormObject> {
 
             columnData.add(new ColumnData(field, object.getClass().getName(), data, parentObjectFields, null, null));
         });
+    }
+
+    public Optional<ColumnData> getColumnData(@NonNull String name) {
+        return columnData.stream().filter(data -> data.getName().equalsIgnoreCase(name)).findFirst();
     }
 
     public abstract String getTableCreateStatement();
@@ -184,7 +188,7 @@ public abstract class BormStatements<O extends BormObject> {
             Object fieldValue = field.get(object);
 
             if (foreignTable == null) {
-                System.out.println("[BORM]: Missing foreign table: " + columnData.getColumn().foreignTable());
+                getBormAPI().getLogger().severe("(" + tableName + "): Invalid foreign table: " + columnData.getColumn().foreignTable());
                 return null;
             }
 

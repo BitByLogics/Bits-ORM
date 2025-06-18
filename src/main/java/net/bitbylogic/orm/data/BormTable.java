@@ -15,7 +15,6 @@ import net.bitbylogic.utils.Pair;
 import net.bitbylogic.utils.StringProcessor;
 import net.bitbylogic.utils.reflection.NamedParameter;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
@@ -62,6 +61,7 @@ public class BormTable<O extends BormObject> {
             statements.loadColumnData(tempObject, new ArrayList<>());
 
             List<NamedParameter> namedParameters = statements.getColumnData().stream().map(data -> data.asNamedParameter(null)).toList();
+
             objectConstructor = ReflectionUtil.findNamedConstructor(objectClass, namedParameters.toArray(new NamedParameter[]{}));
 
             if (objectConstructor == null) {
@@ -85,7 +85,7 @@ public class BormTable<O extends BormObject> {
         bormAPI.executeQuery(String.format("SELECT * FROM %s;", table), result -> {
             try {
                 if (result == null || !result.next()) {
-                    log("Finished retrieving data.");
+                    log("No data found - finished retrieving data.");
 
                     completeRunnable.run();
                     onDataLoaded();
@@ -101,13 +101,46 @@ public class BormTable<O extends BormObject> {
                     }));
                 } while (result.next());
 
-                log("Finished retrieving data.");
+                log("Finished retrieving data, loaded " + dataMap.size() + " object(s).");
 
                 completeRunnable.run();
                 onDataLoaded();
             } catch (SQLException exception) {
                 throw new RuntimeException(exception);
             }
+        });
+    }
+
+    public void loadDataByField(@NonNull String fieldName, @NonNull Object object, @NonNull Runnable completeRunnable) {
+        statements.getColumnData(fieldName).ifPresentOrElse(columnData -> {
+            FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(columnData.getField().getGenericType()));
+
+            String value = (String) processor.processTo(object);
+            String query = String.format("SELECT * FROM %s WHERE %s='%s';", table, columnData.getName(), value);
+
+            bormAPI.executeQuery(query, result -> {
+                try {
+                    if (result == null || !result.next()) {
+                        return;
+                    }
+
+                    do {
+                        loadObject(result, o -> o.ifPresent(data -> {
+                            dataMap.put(statements.getId(data), data);
+                            data.setOwningTable(this);
+                            onDataAdded(data);
+                        }));
+                    } while (result.next());
+                } catch (SQLException exception) {
+                    bormAPI.getLogger().severe("Failed to load data from table " + table + ": " + exception.getMessage());
+                    throw new RuntimeException(exception);
+                } finally {
+                    completeRunnable.run();
+                }
+            });
+        }, () -> {
+            bormAPI.getLogger().warning("Unable to find column for field: " + fieldName + " in table: " + table);
+            completeRunnable.run();
         });
     }
 
@@ -120,11 +153,11 @@ public class BormTable<O extends BormObject> {
     public void onDataAdded(@NonNull O object) {
     }
 
-    public void add(@NotNull O object) {
+    public void add(@NonNull O object) {
         add(object, true);
     }
 
-    public void add(@NotNull O object, boolean save) {
+    public void add(@NonNull O object, boolean save) {
         if (dataMap.containsKey(statements.getId(object))) {
             return;
         }
@@ -140,17 +173,22 @@ public class BormTable<O extends BormObject> {
         save(object);
     }
 
-    public void save(@NotNull O object) {
+    public void save(@NonNull O object) {
         save(object, null);
     }
 
-    public void save(@NotNull O object, @Nullable Consumer<Optional<ResultSet>> callback) {
+    public void save(@NonNull O object, @Nullable Consumer<Optional<ResultSet>> callback) {
         bormAPI.executeStatement(statements.getDataSaveStatement(object), result -> {
             if (result == null) {
                 if (callback != null) {
                     callback.accept(Optional.empty());
                 }
 
+                if (bormAPI.getRedisHook() == null) {
+                    return;
+                }
+
+                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE, table, statements.getId(object).toString());
                 return;
             }
 
@@ -158,8 +196,6 @@ public class BormTable<O extends BormObject> {
                 if (!columnData.getColumn().autoIncrement()) {
                     return;
                 }
-
-                Object fieldObject = statements.getFieldObject(object, columnData);
 
                 try {
                     Field field = columnData.getField();
@@ -184,7 +220,32 @@ public class BormTable<O extends BormObject> {
         });
     }
 
-    public void delete(@NotNull O object) {
+    public void saveAll(@Nullable Consumer<Void> callback) {
+        if (dataMap.isEmpty() && callback != null) {
+            callback.accept(null);
+            return;
+        }
+
+        List<String> statements = new ArrayList<>();
+
+        getDataMap().values().forEach(o -> statements.add(getStatements().getDataSaveStatement(o)));
+
+        bormAPI.executeBatch(statements, result -> {
+            if (callback != null) {
+                callback.accept(null);
+            }
+
+            if (bormAPI.getRedisHook() == null) {
+                return;
+            }
+
+            for (O object : dataMap.values()) {
+                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE, table, this.statements.getId(object).toString());
+            }
+        });
+    }
+
+    public void delete(@NonNull O object) {
         if (!dataMap.containsKey(statements.getId(object))) {
             return;
         }
@@ -375,6 +436,10 @@ public class BormTable<O extends BormObject> {
                             object instanceof String string) {
                         object = StringProcessor.findAndProcess(fieldTypeClass, string);
                     }
+
+                    if (fieldTypeClass == boolean.class || fieldTypeClass == Boolean.class) {
+                        object = StringProcessor.findAndProcess(fieldTypeClass, String.valueOf(object));
+                    }
                 }
 
                 if (statementData.foreignTable().isEmpty()) {
@@ -421,18 +486,24 @@ public class BormTable<O extends BormObject> {
         consumer.accept(Optional.empty());
     }
 
-    public Optional<O> getDataById(@NotNull Object id) {
+    public Optional<O> getDataById(@NonNull Object id) {
+        if(!statements.getPrimaryKeyData().getField().getType().equals(String.class) && id instanceof String) {
+            return dataMap.entrySet().stream().filter(entry -> entry.getKey().toString().equalsIgnoreCase((String) id)).map(Map.Entry::getValue).findFirst();
+        }
+
         return Optional.ofNullable(dataMap.get(id));
     }
 
-    public void getDataFromDB(@NotNull Object id, boolean checkCache, @NotNull Consumer<Optional<O>> consumer) {
+    public void getDataFromDB(@NonNull Object id, boolean checkCache, @NonNull Consumer<Optional<O>> consumer) {
         getDataFromDB(id, checkCache, true, consumer);
     }
 
-    public void getDataFromDB(@NotNull Object id, boolean checkCache, boolean cache, @NotNull Consumer<Optional<O>> consumer) {
+    public void getDataFromDB(@NonNull Object id, boolean checkCache, boolean cache, @NonNull Consumer<Optional<O>> consumer) {
         if (checkCache) {
-            if (dataMap.containsKey(id)) {
-                consumer.accept(Optional.of(dataMap.get(id)));
+            Optional<O> optionalValue = getDataById(id);
+
+            if (optionalValue.isPresent()) {
+                consumer.accept(optionalValue);
                 return;
             }
         }
@@ -451,7 +522,7 @@ public class BormTable<O extends BormObject> {
 
                 loadObject(result, o -> {
                     try {
-                        boolean last = result.isLast();
+                        boolean last = result.next();
 
                         if (o.isEmpty()) {
                             if (!last) {
@@ -484,7 +555,7 @@ public class BormTable<O extends BormObject> {
     }
 
     private void log(@NonNull String message) {
-        System.out.println(String.format("[BORM] [%s]: %s", getClass().getSimpleName(), message));
+        bormAPI.getLogger().info("(" + getClass().getSimpleName() + "): " + message);
     }
 
 }

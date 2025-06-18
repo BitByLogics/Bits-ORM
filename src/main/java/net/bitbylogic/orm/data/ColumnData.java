@@ -28,14 +28,14 @@ public class ColumnData {
 
     public String getName() {
         if (column.name().isEmpty()) {
-            return !column.foreignTable().isEmpty() ? parentClassName + "_" + field.getName() : field.getName();
+            return column.subClass() ? parentClassName + "_" + field.getName() : field.getName();
         }
 
         return column.name();
     }
 
     public String getDataType() {
-        return !column.foreignTable().isEmpty() ? foreignKeyData.getDataType() : column.dataType().isEmpty()
+        return column.subClass() ? foreignKeyData.getDataType() : column.dataType().isEmpty()
                 ? DataTypeInferencer.inferDataType(field.getType()) : column.dataType();
     }
 

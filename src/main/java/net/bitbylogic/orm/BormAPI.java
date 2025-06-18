@@ -2,12 +2,13 @@ package net.bitbylogic.orm;
 
 import com.zaxxer.hikari.HikariConfig;
 import com.zaxxer.hikari.HikariDataSource;
+import com.zaxxer.hikari.metrics.prometheus.PrometheusMetricsTrackerFactory;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
-import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.data.BormTable;
+import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.processor.impl.StringListProcessor;
@@ -26,18 +27,23 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.logging.Logger;
 
 @Getter
 public class BormAPI {
 
     private final static DefaultFieldProcessor DEFAULT_FIELD_PROCESSOR = new DefaultFieldProcessor();
 
+    private final Logger logger;
     private final HikariDataSource dataSource;
+    private final ExecutorService dbExecutor;
 
-    private final HashMap<TypeToken<?>, FieldProcessor<?>> fieldProcessors = new HashMap<>();
+    private final ConcurrentHashMap<TypeToken<?>, FieldProcessor<?>> fieldProcessors = new ConcurrentHashMap<>();
+
     private final HashMap<String, Pair<String, BormTable<?>>> tables = new HashMap<>();
     private final HashMap<BormTable<?>, List<String>> pendingTables = new HashMap<>();
 
@@ -49,11 +55,16 @@ public class BormAPI {
 
     public BormAPI(@NonNull String address, @NonNull String database,
                    @NonNull String port, @NonNull String username, @NonNull String password) {
+        this.logger = Logger.getLogger("BORM");
         this.type = DatabaseType.MYSQL;
+
+        this.dbExecutor = Executors.newWorkStealingPool();
 
         HikariConfig config = new HikariConfig();
         config.setMaximumPoolSize(10);
         config.setConnectionTimeout(Duration.ofSeconds(30).toMillis());
+        config.setLeakDetectionThreshold(60000);
+        config.setMetricsTrackerFactory(new PrometheusMetricsTrackerFactory());
         config.setDataSourceClassName("com.mysql.cj.jdbc.MysqlDataSource");
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
@@ -66,25 +77,35 @@ public class BormAPI {
 
         dataSource = new HikariDataSource(config);
 
-        registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
+        registerFieldProcessor(new TypeToken<>() {
+        }, new StringListProcessor());
     }
 
     public BormAPI(@NonNull HikariConfig config) {
+        this.logger = Logger.getLogger("BORM");
         this.type = config.getJdbcUrl().contains("sqlite") ? DatabaseType.SQLITE : DatabaseType.MYSQL;
+
+        this.dbExecutor = this.type == DatabaseType.SQLITE
+                ? Executors.newSingleThreadExecutor()
+                : Executors.newWorkStealingPool();
 
         dataSource = new HikariDataSource(config);
 
-        registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
+        registerFieldProcessor(new TypeToken<>() {
+        }, new StringListProcessor());
     }
 
     public BormAPI(@NonNull File databaseFile) {
+        this.logger = Logger.getLogger("BORM");
         this.type = DatabaseType.SQLITE;
+
+        this.dbExecutor = Executors.newSingleThreadExecutor();
 
         if (!databaseFile.exists()) {
             try {
                 databaseFile.createNewFile();
             } catch (IOException e) {
-                System.out.println("[BORM]: Unable to find database file!");
+                logger.severe("Unable to locate database file!");
                 dataSource = null;
                 return;
             }
@@ -92,21 +113,29 @@ public class BormAPI {
 
         HikariConfig config = new HikariConfig();
         config.setMaximumPoolSize(1);
-        config.setConnectionTimeout(Duration.ofSeconds(30).toMillis());
+        config.setConnectionTimeout(Duration.ofSeconds(60).toMillis());
+        config.setMaxLifetime(Duration.ofMinutes(30).toMillis());
+        config.setLeakDetectionThreshold(60000);
+        config.setMetricsTrackerFactory(new PrometheusMetricsTrackerFactory());
         config.setJdbcUrl("jdbc:sqlite:" + databaseFile);
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
         config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048");
-        config.setConnectionInitSql("PRAGMA foreign_keys = ON;");
+        config.setConnectionInitSql("PRAGMA journal_mode=WAL; " +
+                "PRAGMA synchronous=NORMAL; " +
+                "PRAGMA foreign_keys=ON; " +
+                "PRAGMA busy_timeout=10000;"
+        );
 
         dataSource = new HikariDataSource(config);
 
-        registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
+        registerFieldProcessor(new TypeToken<>() {
+        }, new StringListProcessor());
     }
 
-    public <O extends BormObject, T extends BormTable<O>> void registerTable(Class<? extends T> tableClass, Consumer<T> consumer) {
+    public synchronized <O extends BormObject, T extends BormTable<O>> void registerTable(Class<? extends T> tableClass, Consumer<T> consumer) {
         if (tables.containsKey(tableClass.getSimpleName())) {
-            System.out.println("[BORM]: Couldn't register table " + tableClass.getSimpleName() + ", it's already registered.");
+            logger.warning("Failed to register table " + tableClass.getSimpleName() + ", it's already registered.");
             return;
         }
 
@@ -116,7 +145,7 @@ public class BormAPI {
                     T table = ReflectionUtil.findAndCallConstructor(tableClass, this);
 
                     if (table == null || table.getTable() == null) {
-                        System.out.println("[BORM]: Unable to create instance of table " + tableClass.getSimpleName() + "!");
+                        logger.severe("Unable to create instance of table " + tableClass.getSimpleName() + "!");
                         return;
                     }
 
@@ -132,7 +161,7 @@ public class BormAPI {
                             List<String> tables = pendingTables.getOrDefault(table, new ArrayList<>());
                             tables.add(foreignTableName);
                             pendingTables.put(table, tables);
-                            System.out.println("[BORM]: Table " + table.getTable() + " requires " + foreignTableName + " and will be loaded when it's loaded!");
+                            logger.warning("Table " + table.getTable() + " requires " + foreignTableName + " and will be loaded when it's loaded!");
                             getTables().put(tableClass.getSimpleName(), new Pair<>(table.getTable(), table));
                             consumer.accept(table);
                             return;
@@ -147,7 +176,7 @@ public class BormAPI {
 
                     consumer.accept(table);
                 } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-                    System.out.println("[BORM]: Couldn't create instance of table " + tableClass.getSimpleName() + "!");
+                    logger.severe("Couldn't create instance of table " + tableClass);
                     e.printStackTrace();
                 }
             });
@@ -157,7 +186,7 @@ public class BormAPI {
     private synchronized void loadTable(@NonNull BormTable<?> table) {
         executeStatement(table.getStatements().getTableCreateStatement(), resultSet -> {
             if (!table.isLoadData()) {
-                System.out.println("[BORM] [" + table.getClass().getSimpleName() + "]: Finished retrieving data.");
+                logger.info("Finished loading table " + table.getTable() + ", data must be manually pulled.");
                 checkForeignTables(table);
                 return;
             }
@@ -200,11 +229,11 @@ public class BormAPI {
             loadTable(pendingTable);
             iterator.remove();
 
-            System.out.println("[BORM]: All foreign tables loaded for " + pendingTable.getTable() + ", it will now be loaded!");
+            logger.info("All foreign tables loaded for " + pendingTable.getTable() + ", it will now be loaded!");
         }
     }
 
-    public BormTable<?> getTable(@NonNull String tableName) {
+    public synchronized BormTable<?> getTable(@NonNull String tableName) {
         return tables.values().stream()
                 .filter(tablePair -> tablePair.getKey().equalsIgnoreCase(tableName))
                 .map(Pair::getValue).findFirst().orElse(null);
@@ -237,12 +266,12 @@ public class BormAPI {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-        }).handle((unused, e) -> {
+        }, dbExecutor).handle((unused, e) -> {
             if (e == null) {
                 return null;
             }
 
-            System.out.println("[BORM]: Issue executing statement: " + query);
+            logger.severe("Error executing statement: " + query);
             e.printStackTrace();
             return null;
         });
@@ -267,13 +296,51 @@ public class BormAPI {
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-        }).handle((unused, e) -> {
+        }, dbExecutor).handle((unused, e) -> {
             if (e == null) {
                 return null;
             }
 
-            System.out.println("[BORM]: Issue executing statement: " + query);
+            logger.severe("Error executing query: " + query);
             e.printStackTrace();
+            return null;
+        });
+    }
+
+    public void executeBatch(@NonNull List<String> queries, @NonNull Consumer<Void> consumer) {
+        executeBatch(queries, new ArrayList<>(), consumer);
+    }
+
+    public synchronized void executeBatch(List<String> queries, List<Object[]> parametersList, @NonNull Consumer<Void> consumer) {
+        CompletableFuture.runAsync(() -> {
+            try (Connection connection = dataSource.getConnection()) {
+                connection.setAutoCommit(false);
+
+                for (int i = 0; i < queries.size(); i++) {
+                    try (PreparedStatement statement = connection.prepareStatement(queries.get(i))) {
+
+                        if (parametersList != null && !parametersList.isEmpty() && i < parametersList.size()) {
+                            Object[] params = parametersList.get(i);
+
+                            for (int j = 0; j < params.length; j++) {
+                                statement.setObject(j + 1, params[j]);
+                            }
+                        }
+
+                        statement.executeUpdate();
+                    }
+                }
+
+                connection.commit();
+                consumer.accept(null);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }, dbExecutor).handle((unused, e) -> {
+            if (e != null) {
+                logger.severe("Error executing batch");
+                e.printStackTrace();
+            }
             return null;
         });
     }
@@ -284,20 +351,26 @@ public class BormAPI {
         }
 
         dataSource.close();
+
+        dbExecutor.shutdown();
+
+        try {
+            if (!dbExecutor.awaitTermination(5, TimeUnit.SECONDS)) {
+                dbExecutor.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            dbExecutor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     public <T> void registerFieldProcessor(@NonNull TypeToken<T> type, @NonNull FieldProcessor<T> processor) {
-        if(fieldProcessors.containsKey(type)) {
-            return;
-        }
-
-        fieldProcessors.put(type, processor);
+        fieldProcessors.putIfAbsent(type, processor);
     }
 
-    // Not a great solution, will revisit later.
     public FieldProcessor<?> getFieldProcessor(@NonNull TypeToken<?> type) {
         for (Map.Entry<TypeToken<?>, FieldProcessor<?>> entry : fieldProcessors.entrySet()) {
-            if(entry.getKey().getType().getTypeName().equalsIgnoreCase(type.getType().getTypeName())) {
+            if (entry.getKey().getType().getTypeName().equalsIgnoreCase(type.getType().getTypeName())) {
                 return entry.getValue();
             }
         }

@@ -2,11 +2,13 @@ package net.bitbylogic.orm.redis;
 
 import lombok.NonNull;
 import net.bitbylogic.orm.BormAPI;
+import net.bitbylogic.orm.DatabaseType;
 import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.data.BormTable;
 import net.bitbylogic.rps.listener.ListenerComponent;
 import net.bitbylogic.rps.listener.RedisMessageListener;
 
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -45,8 +47,12 @@ public class BormUpdateRML extends RedisMessageListener {
         CompletableFuture.runAsync(() -> {
             switch (updateType) {
                 case SAVE:
-                    bormTable.getDataMap().remove(bormTable.getStatements().getId(object));
-                    bormTable.getDataFromDB(objectId, true, true, o -> {});
+                    if(bormAPI.getType() != DatabaseType.SQLITE) {
+                        bormTable.getDataMap().remove(bormTable.getStatements().getId(object));
+                        bormTable.getDataFromDB(objectId, false, true, o -> {});
+                        break;
+                    }
+
                     break;
                 case DELETE:
                     bormTable.getDataMap().remove(bormTable.getStatements().getId(object));

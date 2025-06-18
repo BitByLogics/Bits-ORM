@@ -68,7 +68,7 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
     @Override
     public String getDataDeleteStatement(O object) {
         if (getColumnData().stream().noneMatch(columnData -> columnData.getColumn().primaryKey())) {
-            System.out.printf("[APIByLogic] [BORM] (%s) No primary key, aborting.%n", getTableName());
+            getBormAPI().getLogger().severe("(" + getTableName() + ") No primary key for object, failed to delete!");
             return null;
         }
 

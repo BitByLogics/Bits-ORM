@@ -77,7 +77,7 @@
 
         <!-- Bit's Utils -->
         <dependency>
-            <groupId>com.github.BitByLogics.Bits-Utils</groupId>
+            <groupId>net.bitbylogic</groupId>
             <artifactId>bits-utils-common</artifactId>
             <version>1.0.0</version>
         </dependency>
