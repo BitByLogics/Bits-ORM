@@ -89,7 +89,7 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
                         FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                         if (statementData.foreignTable().isEmpty()) {
-                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + processor.processTo(fieldValue) + "'"));
+                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
                             return;
                         }
 
@@ -154,7 +154,7 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
                 FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                 if (statementData.foreignTable().isEmpty()) {
-                    entries.add(String.format("key= %s", fieldValue == null ? null : "'" + processor.processTo(fieldValue) + "'"));
+                    entries.add(String.format("key= %s", fieldValue == null ? null : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
                     return;
                 }
 
@@ -179,7 +179,7 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
                         FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                         if (statementData.foreignTable().isEmpty()) {
-                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + processor.processTo(fieldValue) + "'"));
+                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
                             return;
                         }
 

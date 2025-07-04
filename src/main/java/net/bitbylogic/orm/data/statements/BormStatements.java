@@ -100,7 +100,7 @@ public abstract class BormStatements<O extends BormObject> {
                 FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                 if (statementData.foreignTable().isEmpty()) {
-                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.processTo(fieldValue) + "'"));
+                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
                     return;
                 }
 
@@ -130,7 +130,7 @@ public abstract class BormStatements<O extends BormObject> {
                 FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
 
                 if (statementData.foreignTable().isEmpty()) {
-                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processor.processTo(fieldValue) + "'"));
+                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
                     return;
                 }
 
