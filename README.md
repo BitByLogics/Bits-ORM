@@ -1,6 +1,5 @@
 <div align="center">
-<img src="https://i.imgur.com/KMwkYIK.jpeg" style="width: 20%;" alt="Icon">
-
+	
 ## Bit's ORM (BORM)
 [![Build](https://img.shields.io/github/actions/workflow/status/BitByLogics/Bits-ORM/.github/workflows/maven.yml?branch=master)](https://github.com/BitByLogics/Bits-ORM/actions)
 ![Issues](https://img.shields.io/github/issues-raw/BitByLogics/Bits-ORM)
