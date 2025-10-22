@@ -17,12 +17,16 @@ import net.bitbylogic.utils.reflection.NamedParameter;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.invoke.MethodHandle;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
@@ -220,29 +224,67 @@ public class BormTable<O extends BormObject> {
         });
     }
 
-    public void saveAll(@Nullable Consumer<Void> callback) {
-        if (dataMap.isEmpty() && callback != null) {
-            callback.accept(null);
-            return;
+    public CompletableFuture<Void> saveAll() {
+        if (dataMap.isEmpty()) {
+            return CompletableFuture.completedFuture(null);
         }
 
-        List<String> statements = new ArrayList<>();
+        return CompletableFuture.runAsync(() -> {
+            try (Connection conn = bormAPI.getDataSource().getConnection();
+                 PreparedStatement ps = conn.prepareStatement(getStatements().getSaveStatement())) {
 
-        getDataMap().values().forEach(o -> statements.add(getStatements().getDataSaveStatement(o)));
+                conn.setAutoCommit(false);
 
-        bormAPI.executeBatch(statements, result -> {
-            if (callback != null) {
-                callback.accept(null);
+                List<MethodHandle> getters = getStatements().getColumnData().stream()
+                        .filter(col -> col.getColumn().updateOnSave())
+                        .map(ColumnData::getGetter)
+                        .toList();
+
+                int batchCount = 0;
+                for (O object : dataMap.values()) {
+                    int index = 1;
+
+                    for (MethodHandle getter : getters) {
+                        Object value = null;
+
+                        try {
+                            value = getter.invoke(object);
+                        } catch (Throwable e) {
+                            throw new RuntimeException(e);
+                        }
+
+                        ps.setObject(index++, value);
+                    }
+
+                    ps.addBatch();
+
+                    batchCount++;
+
+                    if (batchCount % bormAPI.getBatchSaveSize() == 0) {
+                        ps.executeBatch();
+                        conn.commit();
+                    }
+                }
+
+                if (batchCount % bormAPI.getBatchSaveSize() != 0) {
+                    ps.executeBatch();
+                    conn.commit();
+                }
+
+                if (bormAPI.getRedisHook() != null) {
+                    for (O object : dataMap.values()) {
+                        bormAPI.getRedisHook().sendChange(
+                                BormRedisUpdateType.SAVE,
+                                table,
+                                this.statements.getId(object).toString()
+                        );
+                    }
+                }
+
+            } catch (Exception e) {
+                throw new RuntimeException("Error saving batch for table " + table, e);
             }
-
-            if (bormAPI.getRedisHook() == null) {
-                return;
-            }
-
-            for (O object : dataMap.values()) {
-                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE, table, this.statements.getId(object).toString());
-            }
-        });
+        }, bormAPI.getDbExecutor());
     }
 
     public void delete(@NonNull O object) {
