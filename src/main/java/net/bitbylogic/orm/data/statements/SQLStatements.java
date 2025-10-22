@@ -210,4 +210,31 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
                 (columnData.getColumn().allowNull() ? "" : "NOT NULL") + (columnData.getColumn().autoIncrement() ? " AUTO_INCREMENT" : "");
     }
 
+    @Override
+    public void loadColumnData(@NonNull Object object, List<String> parentObjectFields) {
+        super.loadColumnData(object, parentObjectFields);
+
+        List<String> columns = new ArrayList<>();
+        List<String> placeholders = new ArrayList<>();
+        List<String> updates = new ArrayList<>();
+
+        for (ColumnData col : getColumnData()) {
+            if (!col.getColumn().updateOnSave()) {
+                continue;
+            }
+
+            String name = col.getName();
+            columns.add(name);
+            placeholders.add("?");
+            updates.add(name + " = VALUES(" + name + ")");
+        }
+
+        setSaveStatement(String.format(
+                "INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s;",
+                getTableName(),
+                String.join(", ", columns),
+                String.join(", ", placeholders),
+                String.join(", ", updates)
+        ));
+    }
 }

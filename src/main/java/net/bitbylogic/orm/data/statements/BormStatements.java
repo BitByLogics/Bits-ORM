@@ -1,13 +1,11 @@
 package net.bitbylogic.orm.data.statements;
 
-import lombok.Getter;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
+import lombok.*;
 import net.bitbylogic.orm.BormAPI;
 import net.bitbylogic.orm.annotation.Column;
-import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.data.BormTable;
+import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.utils.HashMapUtil;
@@ -27,6 +25,9 @@ public abstract class BormStatements<O extends BormObject> {
     private final String tableName;
 
     private final List<ColumnData> columnData = new ArrayList<>();
+
+    @Setter(AccessLevel.PROTECTED)
+    private String saveStatement;
 
     public void loadColumnData(@NonNull Object object, List<String> parentObjectFields) {
         List<Field> fields = new ArrayList<>();
@@ -166,11 +167,11 @@ public abstract class BormStatements<O extends BormObject> {
 
     public Object getId(BormObject object) {
         try {
-            Field primaryKeyField = getPrimaryKeyData().getField();
-            primaryKeyField.setAccessible(true);
-            return primaryKeyField.get(object);
+            return getPrimaryKeyData().getGetter().invoke(object);
         } catch (IllegalAccessException e) {
             e.printStackTrace();
+        } catch (Throwable e) {
+            throw new RuntimeException(e);
         }
 
         return null;
