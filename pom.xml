@@ -6,7 +6,7 @@
 
     <groupId>net.bitbylogic</groupId>
     <artifactId>bits-orm</artifactId>
-    <version>1.1.1</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <name>Bit's ORM</name>
@@ -75,11 +75,11 @@
             <scope>provided</scope>
         </dependency>
 
-        <!-- Bit's Utils -->
+        <!-- Bit's Utils Common -->
         <dependency>
-            <groupId>net.bitbylogic</groupId>
+            <groupId>com.github.BitByLogics.Bits-Utils</groupId>
             <artifactId>bits-utils-common</artifactId>
-            <version>1.0.0</version>
+            <version>2.1.0</version>
         </dependency>
 
         <!-- Bit's RPS -->
