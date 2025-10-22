@@ -31,6 +31,7 @@ import java.util.concurrent.*;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 @Getter
@@ -49,6 +50,9 @@ public class BormAPI {
 
     @Setter
     private DatabaseType type;
+
+    @Setter
+    private int batchSaveSize = 100000;
 
     @Setter
     private @Nullable BormRedisHook redisHook;
@@ -129,72 +133,71 @@ public class BormAPI {
 
         dataSource = new HikariDataSource(config);
 
-        registerFieldProcessor(new TypeToken<>() {
-        }, new StringListProcessor());
+        registerFieldProcessor(new TypeToken<>() {}, new StringListProcessor());
     }
 
-    public synchronized <O extends BormObject, T extends BormTable<O>> void registerTable(Class<? extends T> tableClass, Consumer<T> consumer) {
+    public synchronized <O extends BormObject, T extends BormTable<O>> CompletableFuture<T> registerTable(Class<? extends T> tableClass) {
         if (tables.containsKey(tableClass.getSimpleName())) {
             logger.warning("Failed to register table " + tableClass.getSimpleName() + ", it's already registered.");
-            return;
+            return CompletableFuture.completedFuture(null);
         }
 
-        try (ForkJoinPool pool = ForkJoinPool.commonPool()) {
-            pool.execute(() -> {
-                try {
-                    T table = ReflectionUtil.findAndCallConstructor(tableClass, this);
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                T table = ReflectionUtil.findAndCallConstructor(tableClass, this);
 
-                    if (table == null || table.getTable() == null) {
-                        logger.severe("Unable to create instance of table " + tableClass.getSimpleName() + "!");
-                        return;
-                    }
-
-                    for (ColumnData columnData : table.getStatements().getColumnData()) {
-                        if (columnData.getColumn().foreignTable().isEmpty()) {
-                            continue;
-                        }
-
-                        String foreignTableName = columnData.getColumn().foreignTable();
-                        BormTable<?> foreignTable = getTable(foreignTableName);
-
-                        if (foreignTable == null) {
-                            List<String> tables = pendingTables.getOrDefault(table, new ArrayList<>());
-                            tables.add(foreignTableName);
-                            pendingTables.put(table, tables);
-                            logger.warning("Table " + table.getTable() + " requires " + foreignTableName + " and will be loaded when it's loaded!");
-                            getTables().put(tableClass.getSimpleName(), new Pair<>(table.getTable(), table));
-                            consumer.accept(table);
-                            return;
-                        }
-
-                        columnData.setForeignKeyData(foreignTable.getStatements().getPrimaryKeyData());
-                        columnData.setForeignTable(foreignTable);
-                    }
-
-                    getTables().put(tableClass.getSimpleName(), new Pair<>(table.getTable(), table));
-                    loadTable(table);
-
-                    consumer.accept(table);
-                } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
-                    logger.severe("Couldn't create instance of table " + tableClass);
-                    e.printStackTrace();
+                if (table == null || table.getTable() == null) {
+                    logger.severe("Unable to create instance of table " + tableClass.getSimpleName() + "!");
+                    return null;
                 }
-            });
-        }
+
+                for (ColumnData columnData : table.getStatements().getColumnData()) {
+                    if (columnData.getColumn().foreignTable().isEmpty()) continue;
+
+                    String foreignTableName = columnData.getColumn().foreignTable();
+                    BormTable<?> foreignTable = getTable(foreignTableName);
+
+                    if (foreignTable == null) {
+                        List<String> tables = pendingTables.getOrDefault(table, new ArrayList<>());
+                        tables.add(foreignTableName);
+                        pendingTables.put(table, tables);
+
+                        logger.warning("Table " + table.getTable() + " requires " + foreignTableName + " and will be loaded later!");
+                        getTables().put(tableClass.getSimpleName(), new Pair<>(table.getTable(), table));
+                        return table;
+                    }
+
+                    columnData.setForeignKeyData(foreignTable.getStatements().getPrimaryKeyData());
+                    columnData.setForeignTable(foreignTable);
+                }
+
+                getTables().put(tableClass.getSimpleName(), new Pair<>(table.getTable(), table));
+                return table;
+            } catch (InvocationTargetException | InstantiationException | IllegalAccessException e) {
+                logger.log(Level.SEVERE, "Couldn't create instance of table " + tableClass.getSimpleName(), e);
+                return null;
+            }
+        }, ForkJoinPool.commonPool()).thenCompose(finalTable -> finalTable != null ? loadTable(finalTable) : null);
     }
 
-    private synchronized void loadTable(@NonNull BormTable<?> table) {
+    private synchronized <T extends BormTable<?>> CompletableFuture<T> loadTable(@NonNull T table) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+
         executeStatement(table.getStatements().getTableCreateStatement(), resultSet -> {
             if (!table.isLoadData()) {
                 logger.info("Finished loading table " + table.getTable() + ", data must be manually pulled.");
                 checkForeignTables(table);
+                future.complete(table);
                 return;
             }
 
             table.loadData(() -> {
                 checkForeignTables(table);
+                future.complete(table);
             });
         });
+
+        return future;
     }
 
     private synchronized void checkForeignTables(@NonNull BormTable<?> table) {
@@ -307,12 +310,12 @@ public class BormAPI {
         });
     }
 
-    public void executeBatch(@NonNull List<String> queries, @NonNull Consumer<Void> consumer) {
-        executeBatch(queries, new ArrayList<>(), consumer);
+    public CompletableFuture<Void> executeBatch(@NonNull List<String> queries) {
+        return executeBatch(queries, new ArrayList<>());
     }
 
-    public synchronized void executeBatch(List<String> queries, List<Object[]> parametersList, @NonNull Consumer<Void> consumer) {
-        CompletableFuture.runAsync(() -> {
+    public synchronized CompletableFuture<Void> executeBatch(List<String> queries, List<Object[]> parametersList) {
+        return CompletableFuture.runAsync(() -> {
             try (Connection connection = dataSource.getConnection()) {
                 connection.setAutoCommit(false);
 
@@ -332,17 +335,10 @@ public class BormAPI {
                 }
 
                 connection.commit();
-                consumer.accept(null);
             } catch (SQLException e) {
                 throw new RuntimeException(e);
             }
-        }, dbExecutor).handle((unused, e) -> {
-            if (e != null) {
-                logger.severe("Error executing batch");
-                e.printStackTrace();
-            }
-            return null;
-        });
+        }, dbExecutor);
     }
 
     public void close() {
