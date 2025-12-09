@@ -5,9 +5,9 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import net.bitbylogic.orm.BormAPI;
 import net.bitbylogic.orm.annotation.Column;
-import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.data.BormTable;
+import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.utils.HashMapUtil;
@@ -73,6 +73,10 @@ public abstract class BormStatements<O extends BormObject> {
     }
 
     public abstract String getTableCreateStatement();
+
+    public String getTableClearStatement() {
+        return "DELETE FROM " + tableName + ";";
+    }
 
     protected abstract String getStatementDataBlock(boolean includeMetadata, String... includedFields);
 

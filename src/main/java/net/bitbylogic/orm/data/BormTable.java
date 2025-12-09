@@ -245,6 +245,16 @@ public class BormTable<O extends BormObject> {
         });
     }
 
+    /**
+     * Deletes all the entries in the in-memory cache and the corresponding records
+     * from the associated database table. This method clears the internal data map
+     * and executes a SQL statement to remove all rows from the table.
+     */
+    public void deleteAll() {
+        dataMap.clear();
+        bormAPI.executeStatement(statements.getTableClearStatement());
+    }
+
     public void delete(@NonNull O object) {
         if (!dataMap.containsKey(statements.getId(object))) {
             return;
