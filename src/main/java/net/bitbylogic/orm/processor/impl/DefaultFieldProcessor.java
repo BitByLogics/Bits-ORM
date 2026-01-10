@@ -10,6 +10,10 @@ public class DefaultFieldProcessor implements FieldProcessor<Object> {
             return String.valueOf((Boolean) fieldValue ? 1 : 0);
         }
 
+        if (fieldValue instanceof byte[]) {
+            return fieldValue;
+        }
+
         return fieldValue.toString();
     }
 

@@ -15,6 +15,7 @@ public enum DataTypeInferencer {
     FLOAT(new Class[]{Float.class,float.class}, "FLOAT"),
     SHORT(new Class[]{Short.class, short.class}, "SMALLINT"),
     BYTE(new Class[]{Byte.class, byte.class}, "TINYINT"),
+    BYTEARRAY(new Class[]{byte[].class}, "LONGBLOB"),
     BOOLEAN(new Class[]{Boolean.class, boolean.class}, "BOOLEAN"),
     CHAR(new Class[]{Character.class, char.class}, "CHAR"),
     STRING(new Class[] {String.class}, "TEXT"),

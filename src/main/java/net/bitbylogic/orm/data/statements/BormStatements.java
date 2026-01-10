@@ -132,9 +132,18 @@ public abstract class BormStatements<O extends BormObject> {
                 Object fieldValue = field.get(fieldObject);
 
                 FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                Object processedValue = fieldValue == null ? null : processor.processTo(fieldValue);
+
+                if(processedValue instanceof String stringValue) {
+                    processedValue = stringValue.replace("'", "''");
+                }
+
+                if (processedValue instanceof byte[] bytes) {
+                    processedValue = Base64.getEncoder().encodeToString(bytes);
+                }
 
                 if (statementData.foreignTable().isEmpty()) {
-                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
+                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processedValue + "'"));
                     return;
                 }
 
