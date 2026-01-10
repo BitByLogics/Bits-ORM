@@ -199,7 +199,7 @@ public class BormTable<O extends BormObject> {
 
                 try {
                     Field field = columnData.getField();
-                    boolean originalState = field.canAccess(this);
+                    boolean originalState = field.canAccess(object);
                     field.setAccessible(true);
                     field.setInt(object, result.getInt(1));
                     field.setAccessible(originalState);
@@ -444,7 +444,9 @@ public class BormTable<O extends BormObject> {
                     if (fieldTypeClass != String.class &&
                             processor instanceof DefaultFieldProcessor &&
                             object instanceof String string) {
-                        object = StringProcessor.findAndProcess(fieldTypeClass, string);
+                        if(!fieldTypeClass.isAssignableFrom(Byte[].class)) {
+                            object = StringProcessor.findAndProcess(fieldTypeClass, string);
+                        }
                     }
 
                     if (fieldTypeClass == boolean.class || fieldTypeClass == Boolean.class) {
