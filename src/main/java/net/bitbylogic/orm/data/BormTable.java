@@ -153,6 +153,9 @@ public class BormTable<O extends BormObject> {
     public void onDataAdded(@NonNull O object) {
     }
 
+    public void onDataUpdated(@NonNull O object) {
+    }
+
     public void add(@NonNull O object) {
         add(object, true);
     }
@@ -207,6 +210,8 @@ public class BormTable<O extends BormObject> {
                     throw new RuntimeException(e);
                 }
             });
+
+            onDataUpdated(object);
 
             if (callback != null) {
                 callback.accept(Optional.of(result));
