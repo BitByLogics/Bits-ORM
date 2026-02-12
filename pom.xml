@@ -79,7 +79,7 @@
         <dependency>
             <groupId>com.github.BitByLogics.Bits-Utils</groupId>
             <artifactId>bits-utils-common</artifactId>
-            <version>f4b2086f81</version>
+            <version>affdb08c5c</version>
         </dependency>
 
         <!-- Bit's RPS -->
