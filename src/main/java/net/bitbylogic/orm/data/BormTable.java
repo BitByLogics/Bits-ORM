@@ -8,13 +8,13 @@ import net.bitbylogic.orm.data.statements.BormStatements;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.redis.BormRedisUpdateType;
-import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.utils.HashMapUtil;
 import net.bitbylogic.utils.ListUtil;
 import net.bitbylogic.utils.Pair;
 import net.bitbylogic.utils.StringProcessor;
 import net.bitbylogic.utils.reflection.NamedParameter;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
+import net.bitbylogic.utils.reflection.TypeToken;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Constructor;
@@ -236,16 +236,12 @@ public class BormTable<O extends BormObject> {
         getDataMap().values().forEach(o -> statements.add(getStatements().getDataSaveStatement(o)));
 
         bormAPI.executeBatch(statements, result -> {
+            if (bormAPI.getRedisHook() != null) {
+                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE_ALL, table, "");
+            }
+
             if (callback != null) {
                 callback.accept(null);
-            }
-
-            if (bormAPI.getRedisHook() == null) {
-                return;
-            }
-
-            for (O object : dataMap.values()) {
-                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE, table, this.statements.getId(object).toString());
             }
         });
     }

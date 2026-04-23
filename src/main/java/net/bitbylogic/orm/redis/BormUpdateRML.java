@@ -8,7 +8,6 @@ import net.bitbylogic.orm.data.BormTable;
 import net.bitbylogic.rps.listener.ListenerComponent;
 import net.bitbylogic.rps.listener.RedisMessageListener;
 
-import java.util.HashMap;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -27,13 +26,24 @@ public class BormUpdateRML extends RedisMessageListener {
     public void onReceive(ListenerComponent component) {
         BormRedisUpdateType updateType = component.getData("updateType", BormRedisUpdateType.class);
         String tableName = component.getData("tableName", String.class);
-        String objectId = component.getData("objectId", String.class);
 
         BormTable bormTable = bormAPI.getTable(tableName);
 
-        if(bormTable == null) {
+        if (bormTable == null) {
             return;
         }
+
+        Executor delayedExecutor = CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS);
+
+        if (updateType == BormRedisUpdateType.SAVE_ALL) {
+            CompletableFuture.runAsync(() -> {
+                bormTable.getDataMap().clear();
+                bormTable.loadData(() -> {});
+            }, delayedExecutor);
+            return;
+        }
+
+        String objectId = component.getData("objectId", String.class);
 
         Optional<BormObject> optionalObject = bormTable.getDataById(objectId);
 
@@ -42,14 +52,14 @@ public class BormUpdateRML extends RedisMessageListener {
         }
 
         BormObject object = optionalObject.get();
-        Executor delayedExecutor = CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS);
 
         CompletableFuture.runAsync(() -> {
             switch (updateType) {
                 case SAVE:
-                    if(bormAPI.getType() != DatabaseType.SQLITE) {
+                    if (bormAPI.getType() != DatabaseType.SQLITE) {
                         bormTable.getDataMap().remove(bormTable.getStatements().getId(object));
-                        bormTable.getDataFromDB(objectId, false, true, o -> {});
+                        bormTable.getDataFromDB(objectId, false, true, o -> {
+                        });
                         break;
                     }
 

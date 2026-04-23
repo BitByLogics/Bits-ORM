@@ -79,14 +79,14 @@
         <dependency>
             <groupId>com.github.BitByLogics.Bits-Utils</groupId>
             <artifactId>bits-utils-common</artifactId>
-            <version>affdb08c5c</version>
+            <version>3b0b73be9a</version>
         </dependency>
 
         <!-- Bit's RPS -->
         <dependency>
             <groupId>com.github.BitByLogics</groupId>
             <artifactId>Bits-RPS</artifactId>
-            <version>1.0.0</version>
+            <version>1.2.0</version>
             <scope>provided</scope>
         </dependency>
 

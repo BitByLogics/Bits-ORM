@@ -7,7 +7,7 @@ import net.bitbylogic.orm.annotation.Column;
 import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.processor.FieldProcessor;
-import net.bitbylogic.orm.util.TypeToken;
+import net.bitbylogic.utils.reflection.TypeToken;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;

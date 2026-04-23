@@ -13,9 +13,9 @@ import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.processor.impl.StringListProcessor;
 import net.bitbylogic.orm.redis.BormRedisHook;
-import net.bitbylogic.orm.util.TypeToken;
 import net.bitbylogic.utils.Pair;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
+import net.bitbylogic.utils.reflection.TypeToken;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -28,8 +28,6 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.*;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.logging.Logger;
 
