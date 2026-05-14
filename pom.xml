@@ -51,10 +51,10 @@
             <url>https://jitpack.io</url>
         </repository>
 
-        <!-- Spigot -->
+        <!-- Paper -->
         <repository>
-            <id>spigot-repo</id>
-            <url>https://hub.spigotmc.org/nexus/content/repositories/snapshots/</url>
+            <id>papermc-repo</id>
+            <url>https://repo.papermc.io/repository/maven-public/</url>
         </repository>
     </repositories>
 
@@ -77,9 +77,9 @@
 
         <!-- Bit's Utils Common -->
         <dependency>
-            <groupId>com.github.BitByLogics.Bits-Utils</groupId>
+            <groupId>com.github.BitByLogics.Bits-utils</groupId>
             <artifactId>bits-utils-common</artifactId>
-            <version>3b0b73be9a</version>
+            <version>06c6f0068d</version>
         </dependency>
 
         <!-- Bit's RPS -->
@@ -112,11 +112,11 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Spigot -->
+        <!-- Paper -->
         <dependency>
-            <groupId>org.spigotmc</groupId>
-            <artifactId>spigot-api</artifactId>
-            <version>1.21.4-R0.1-SNAPSHOT</version>
+            <groupId>io.papermc.paper</groupId>
+            <artifactId>paper-api</artifactId>
+            <version>1.21.11-R0.1-SNAPSHOT</version>
             <scope>provided</scope>
         </dependency>
     </dependencies>
