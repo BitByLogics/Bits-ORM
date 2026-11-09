@@ -7,6 +7,7 @@ import net.bitbylogic.orm.annotation.Column;
 import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.processor.FieldProcessor;
+import net.bitbylogic.utils.Pair;
 import net.bitbylogic.utils.reflection.TypeToken;
 
 import java.lang.reflect.Field;
@@ -66,46 +67,47 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
     }
 
     @Override
-    public String getDataDeleteStatement(O object) {
+    public Pair<String, List<Object>> getDataDeleteStatement(O object) {
         if (getColumnData().stream().noneMatch(columnData -> columnData.getColumn().primaryKey())) {
             getBormAPI().getLogger().severe("(" + getTableName() + ") No primary key for object, failed to delete!");
             return null;
         }
 
         StringBuilder builder = new StringBuilder();
+        List<Object> values = new ArrayList<>();
 
         getColumnData().stream().filter(columnData -> columnData.getColumn().primaryKey()).findFirst()
                 .ifPresent(columnData -> {
-                    builder.append(String.format("DELETE FROM %s WHERE %s=", getTableName(), columnData.getName()));
+                    builder.append(String.format("DELETE FROM %s WHERE %s=?;", getTableName(), columnData.getName()));
 
                     try {
                         Object fieldObject = getFieldObject(object, columnData);
 
                         Column statementData = columnData.getColumn();
                         Field field = columnData.getField();
-                        field.setAccessible(true);
                         Object fieldValue = field.get(fieldObject);
 
-                        FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
-
                         if (statementData.foreignTable().isEmpty()) {
-                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
+                            FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                            values.add(fieldValue == null ? null : processor.processTo(fieldValue));
                             return;
                         }
 
-                        builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + getForeignFieldIdData(object, field, columnData) + "'"));
+                        values.add(fieldValue == null ? null : getForeignFieldIdData(object, field, columnData));
                     } catch (IllegalAccessException e) {
                         throw new RuntimeException(e);
                     }
                 });
 
-        return builder.toString();
+        return new Pair<>(builder.toString(), values);
     }
 
     @Override
-    public String getDataSaveStatement(O object, String... includedFields) {
+    public Pair<String, List<Object>> getDataSaveStatement(O object, String... includedFields) {
+        Pair<String, List<Object>> valuesBlock = getValuesDataBlock(object, includedFields);
+
         StringBuilder builder = new StringBuilder(String.format("INSERT INTO %s (%s) VALUES(%s) ON DUPLICATE KEY UPDATE ",
-                getTableName(), getStatementDataBlock(false, includedFields), getValuesDataBlock(object, includedFields)));
+                getTableName(), getStatementDataBlock(false, includedFields), valuesBlock.getKey()));
 
         List<String> entries = new ArrayList<>();
 
@@ -125,14 +127,17 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
             entries.add(columnData.getName() + "=VALUES(" + columnData.getName() + ")");
         });
 
-        return builder.append(String.join(", ", entries)).append(";").toString();
+        builder.append(String.join(", ", entries)).append(";");
+
+        return new Pair<>(builder.toString(), valuesBlock.getValue());
     }
 
     @Override
-    protected String getUpdateStatement(O object, String... includedFields) {
+    protected Pair<String, List<Object>> getUpdateStatement(O object, String... includedFields) {
         StringBuilder builder = new StringBuilder(String.format("UPDATE %s SET ", getTableName()));
 
         List<String> entries = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
 
         getColumnData().forEach(columnData -> {
             if (columnData.getColumn().primaryKey() || columnData.getColumn().autoIncrement()) {
@@ -148,19 +153,19 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
 
                 Column statementData = columnData.getColumn();
                 Field field = columnData.getField();
-                field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                entries.add(columnData.getName() + "=?");
 
                 if (statementData.foreignTable().isEmpty()) {
-                    entries.add(String.format("key= %s", fieldValue == null ? null : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
+                    FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                    values.add(fieldValue == null ? null : processor.processTo(fieldValue));
                     return;
                 }
 
-                entries.add(String.format("key= %s", fieldValue == null ? null : "'" + getForeignFieldIdData(object, field, columnData) + "'"));
+                values.add(fieldValue == null ? null : getForeignFieldIdData(object, field, columnData));
             } catch (IllegalAccessException e) {
-                e.printStackTrace();
+                logError("Unable to read field value", e);
             }
         });
 
@@ -171,34 +176,46 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
 
                         Column statementData = columnData.getColumn();
                         Field field = columnData.getField();
-                        field.setAccessible(true);
                         Object fieldValue = field.get(fieldObject);
 
-                        builder.append(String.join(", ", entries)).append(" WHERE ").append(columnData.getName()).append(" = ");
-
-                        FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                        builder.append(String.join(", ", entries)).append(" WHERE ").append(columnData.getName()).append(" = ?;");
 
                         if (statementData.foreignTable().isEmpty()) {
-                            builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
+                            FieldProcessor processor = getBormAPI().getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                            values.add(fieldValue == null ? null : processor.processTo(fieldValue));
                             return;
                         }
 
-                        builder.append(String.format("%s;", fieldValue == null ? "NULL" : "'" + getForeignFieldIdData(object, field, columnData) + "'"));
+                        values.add(fieldValue == null ? null : getForeignFieldIdData(object, field, columnData));
                     } catch (IllegalAccessException e) {
                         throw new RuntimeException(e);
                     }
                 });
 
-        return builder.toString();
+        return new Pair<>(builder.toString(), values);
+    }
+
+    /**
+     * MySQL can't index a TEXT column without a key length, so a primary key whose type was only
+     * inferred (a String) becomes VARCHAR(255). An explicit {@code dataType} is always kept as is.
+     */
+    private String resolveDataType(ColumnData columnData) {
+        String dataType = columnData.getDataType();
+
+        if (columnData.getColumn().primaryKey() && columnData.getColumn().dataType().isEmpty() && dataType.equals("TEXT")) {
+            return "VARCHAR(255)";
+        }
+
+        return dataType;
     }
 
     @Override
     public String getFormattedData(@NonNull ColumnData columnData) {
         if (columnData.getForeignKeyData() != null) {
-            String dataType = columnData.getForeignKeyData().getDataType();
+            String dataType = resolveDataType(columnData.getForeignKeyData());
             Class<?> fieldClass = columnData.getField().getType();
 
-            if (fieldClass.isAssignableFrom(List.class) || fieldClass.isAssignableFrom(Map.class)) {
+            if (List.class.isAssignableFrom(fieldClass) || Map.class.isAssignableFrom(fieldClass)) {
                 dataType = "LONGTEXT";
             }
 
@@ -206,7 +223,7 @@ public class SQLStatements<O extends BormObject> extends BormStatements<O> {
                     + (columnData.getForeignKeyData().getColumn().autoIncrement() ? " AUTO_INCREMENT" : "");
         }
 
-        return columnData.getName() + " " + columnData.getDataType() + " " +
+        return columnData.getName() + " " + resolveDataType(columnData) + " " +
                 (columnData.getColumn().allowNull() ? "" : "NOT NULL") + (columnData.getColumn().autoIncrement() ? " AUTO_INCREMENT" : "");
     }
 

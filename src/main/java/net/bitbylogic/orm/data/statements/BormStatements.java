@@ -1,5 +1,6 @@
 package net.bitbylogic.orm.data.statements;
 
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
@@ -9,15 +10,20 @@ import net.bitbylogic.orm.data.BormObject;
 import net.bitbylogic.orm.data.BormTable;
 import net.bitbylogic.orm.data.ColumnData;
 import net.bitbylogic.orm.processor.FieldProcessor;
+import net.bitbylogic.orm.util.SqlIdentifier;
 import net.bitbylogic.utils.HashMapUtil;
 import net.bitbylogic.utils.ListUtil;
+import net.bitbylogic.utils.Pair;
 import net.bitbylogic.utils.reflection.ReflectionUtil;
 import net.bitbylogic.utils.reflection.TypeToken;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.*;
+import java.util.logging.Level;
 
 @RequiredArgsConstructor
 @Getter
@@ -26,13 +32,17 @@ public abstract class BormStatements<O extends BormObject> {
     private final BormAPI bormAPI;
     private final String tableName;
 
+    @Getter(AccessLevel.NONE)
     private final List<ColumnData> columnData = new ArrayList<>();
 
     public void loadColumnData(@NonNull Object object, List<String> parentObjectFields) {
-        List<Field> fields = new ArrayList<>();
+        Set<Field> fields = new LinkedHashSet<>();
 
         fields.addAll(Arrays.asList(object.getClass().getFields()));
-        fields.addAll(Arrays.asList(object.getClass().getDeclaredFields()));
+
+        for (Class<?> current = object.getClass(); current != null && current != Object.class; current = current.getSuperclass()) {
+            fields.addAll(Arrays.asList(current.getDeclaredFields()));
+        }
 
         List<String> originalFields = new ArrayList<>(parentObjectFields);
 
@@ -44,9 +54,8 @@ public abstract class BormStatements<O extends BormObject> {
             Column data = field.getAnnotation(Column.class);
 
             if (!data.foreignTable().isEmpty() &&
-                    (!field.getType().isInstance(BormObject.class) &&
-                            !ReflectionUtil.isListOf(field, BormObject.class) &&
-                            !ReflectionUtil.isMapOf(field, BormObject.class))) {
+                    (!BormObject.class.isAssignableFrom(field.getType()) &&
+                            !isContainerOfBormObjects(field))) {
                 getBormAPI().getLogger().warning("(" + object.getClass().getSimpleName() + "): Skipped field " + field.getName() + ", foreign classes must extend BormObject!");
                 return;
             }
@@ -54,18 +63,68 @@ public abstract class BormStatements<O extends BormObject> {
             if (data.subClass()) {
                 try {
                     field.setAccessible(true);
+
+                    Object nestedObject = field.get(object);
+
+                    if (nestedObject == null) {
+                        Constructor<?> nestedConstructor = ReflectionUtil.findConstructor(field.getType());
+
+                        if (nestedConstructor == null) {
+                            getBormAPI().getLogger().warning("(" + object.getClass().getSimpleName() + "): Unable to inspect subClass field " + field.getName() + ", missing empty constructor.");
+                            return;
+                        }
+
+                        nestedObject = nestedConstructor.newInstance();
+                    }
+
                     parentObjectFields.add(field.getName());
-                    loadColumnData(field.get(object), new ArrayList<>(parentObjectFields));
+                    loadColumnData(nestedObject, new ArrayList<>(parentObjectFields));
                     parentObjectFields.clear();
                     parentObjectFields.addAll(originalFields);
-                } catch (IllegalAccessException e) {
-                    e.printStackTrace();
+                } catch (IllegalAccessException | InstantiationException | InvocationTargetException e) {
+                    logError("Unable to inspect subClass field " + field.getName(), e);
                 }
                 return;
             }
 
-            columnData.add(new ColumnData(field, object.getClass().getName(), data, parentObjectFields, null, null));
+            field.setAccessible(true);
+
+            ColumnData newColumnData = new ColumnData(field, object.getClass().getName(), data, new ArrayList<>(parentObjectFields), null, null);
+
+            if (!SqlIdentifier.isValid(newColumnData.getName())) {
+                getBormAPI().getLogger().warning("(" + object.getClass().getSimpleName() + "): Skipped field " + field.getName() + ", \"" + newColumnData.getName() + "\" is not a valid column name.");
+                return;
+            }
+
+            columnData.add(newColumnData);
         });
+    }
+
+    public List<ColumnData> getColumnData() {
+        return Collections.unmodifiableList(columnData);
+    }
+
+    protected void logError(String message, Throwable throwable) {
+        bormAPI.getLogger().log(Level.SEVERE, "(" + tableName + "): " + message, throwable);
+    }
+
+    private boolean isContainerOfBormObjects(Field field) {
+        if (!(field.getGenericType() instanceof ParameterizedType parameterizedType)) {
+            return false;
+        }
+
+        Type[] typeArguments = parameterizedType.getActualTypeArguments();
+        Type elementType;
+
+        if (List.class.isAssignableFrom(field.getType()) && typeArguments.length == 1) {
+            elementType = typeArguments[0];
+        } else if (Map.class.isAssignableFrom(field.getType()) && typeArguments.length == 2) {
+            elementType = typeArguments[1];
+        } else {
+            return false;
+        }
+
+        return elementType instanceof Class<?> elementClass && BormObject.class.isAssignableFrom(elementClass);
     }
 
     public Optional<ColumnData> getColumnData(@NonNull String name) {
@@ -80,17 +139,21 @@ public abstract class BormStatements<O extends BormObject> {
 
     protected abstract String getStatementDataBlock(boolean includeMetadata, String... includedFields);
 
-    public abstract String getDataSaveStatement(O object, String... includedFields);
+    public abstract Pair<String, List<Object>> getDataSaveStatement(O object, String... includedFields);
 
-    public abstract String getDataDeleteStatement(O object);
+    public abstract Pair<String, List<Object>> getDataDeleteStatement(O object);
 
-    protected abstract String getUpdateStatement(O object, String... includedFields);
+    protected abstract Pair<String, List<Object>> getUpdateStatement(O object, String... includedFields);
 
     public abstract String getFormattedData(@NonNull ColumnData columnData);
 
-    protected String getValuesDataBlock(O object, String... includedFields) {
-        StringBuilder builder = new StringBuilder();
-        List<String> data = new ArrayList<>();
+    /**
+     * Builds the "?, ?, ..." placeholder block for an INSERT's VALUES(...) clause,
+     * paired with the actual values to bind, in the same order as the placeholders.
+     */
+    protected Pair<String, List<Object>> getValuesDataBlock(O object, String... includedFields) {
+        List<String> placeholders = new ArrayList<>();
+        List<Object> values = new ArrayList<>();
 
         columnData.stream().filter(columnData -> columnData.getColumn().primaryKey()).findFirst().ifPresent(columnData -> {
             try {
@@ -98,19 +161,24 @@ public abstract class BormStatements<O extends BormObject> {
 
                 Column statementData = columnData.getColumn();
                 Field field = columnData.getField();
-                field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                placeholders.add("?");
 
-                if (statementData.foreignTable().isEmpty()) {
-                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + ((String) processor.processTo(fieldValue)).replace("'", "''") + "'"));
+                if (statementData.autoIncrement() && isUnassigned(fieldValue)) {
+                    values.add(null);
                     return;
                 }
 
-                data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + getForeignFieldIdData(object, field, columnData) + "'"));
+                if (statementData.foreignTable().isEmpty()) {
+                    FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                    values.add(fieldValue == null ? null : processor.processTo(fieldValue));
+                    return;
+                }
+
+                values.add(fieldValue == null ? null : getForeignFieldIdData(object, field, columnData));
             } catch (IllegalAccessException e) {
-                e.printStackTrace();
+                logError("Unable to read field value", e);
             }
         });
 
@@ -128,33 +196,35 @@ public abstract class BormStatements<O extends BormObject> {
 
                 Column statementData = columnData.getColumn();
                 Field field = columnData.getField();
-                field.setAccessible(true);
                 Object fieldValue = field.get(fieldObject);
 
-                FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
-                Object processedValue = fieldValue == null ? null : processor.processTo(fieldValue);
-
-                if(processedValue instanceof String stringValue) {
-                    processedValue = stringValue.replace("'", "''");
-                }
-
-                if (processedValue instanceof byte[] bytes) {
-                    processedValue = Base64.getEncoder().encodeToString(bytes);
-                }
+                placeholders.add("?");
 
                 if (statementData.foreignTable().isEmpty()) {
-                    data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + processedValue + "'"));
+                    FieldProcessor processor = bormAPI.getFieldProcessor(TypeToken.asTypeToken(field.getGenericType()));
+                    values.add(fieldValue == null ? null : processor.processTo(fieldValue));
                     return;
                 }
 
-                data.add(String.format("%s", fieldValue == null ? "NULL" : "'" + getForeignFieldIdData(object, field, columnData) + "'"));
+                values.add(fieldValue == null ? null : getForeignFieldIdData(object, field, columnData));
             } catch (IllegalAccessException e) {
-                e.printStackTrace();
+                logError("Unable to read field value", e);
             }
         });
 
-        builder.append(String.join(", ", data));
-        return builder.toString();
+        return new Pair<>(String.join(", ", placeholders), values);
+    }
+
+    /**
+     * Whether an auto-increment key still has its default value, meaning the database should
+     * generate it on insert.
+     */
+    public boolean isUnassigned(Object idValue) {
+        if (idValue == null) {
+            return true;
+        }
+
+        return idValue instanceof Number number && number.longValue() == 0;
     }
 
     public Object getFieldObject(Object object, ColumnData columnData) {
@@ -166,7 +236,7 @@ public abstract class BormStatements<O extends BormObject> {
             String parentFieldName = columnData.getParentObjectFields().get(i);
 
             try {
-                Field parentField = object.getClass().getDeclaredField(parentFieldName);
+                Field parentField = findDeclaredField(object.getClass(), parentFieldName);
                 parentField.setAccessible(true);
                 object = parentField.get(object);
             } catch (NoSuchFieldException | IllegalAccessException e) {
@@ -177,13 +247,22 @@ public abstract class BormStatements<O extends BormObject> {
         return object;
     }
 
+    private Field findDeclaredField(Class<?> clazz, String name) throws NoSuchFieldException {
+        for (Class<?> current = clazz; current != null && current != Object.class; current = current.getSuperclass()) {
+            try {
+                return current.getDeclaredField(name);
+            } catch (NoSuchFieldException ignored) {
+            }
+        }
+
+        throw new NoSuchFieldException(name);
+    }
+
     public Object getId(BormObject object) {
         try {
-            Field primaryKeyField = getPrimaryKeyData().getField();
-            primaryKeyField.setAccessible(true);
-            return primaryKeyField.get(object);
+            return getPrimaryKeyData().getField().get(object);
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            logError("Unable to read field value", e);
         }
 
         return null;
@@ -194,8 +273,6 @@ public abstract class BormStatements<O extends BormObject> {
             return null;
         }
 
-        field.setAccessible(true);
-
         try {
             BormTable<?> foreignTable = columnData.getForeignTable();
             Object fieldValue = field.get(object);
@@ -205,7 +282,7 @@ public abstract class BormStatements<O extends BormObject> {
                 return null;
             }
 
-            if (field.getType().isInstance(BormObject.class)) {
+            if (BormObject.class.isAssignableFrom(field.getType())) {
                 return foreignTable.getStatements().getId((BormObject) fieldValue);
             }
 
@@ -233,7 +310,7 @@ public abstract class BormStatements<O extends BormObject> {
                 return HashMapUtil.mapToString(newMap);
             }
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+            logError("Unable to read field value", e);
         }
 
         return null;

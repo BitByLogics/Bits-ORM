@@ -9,7 +9,7 @@ public class BukkitLocationProcessor implements FieldProcessor<Location> {
     @Override
     public Object processTo(Location location) {
         if(location == null || location.getWorld() == null) {
-            return "NULL";
+            return null;
         }
 
         return String.format("%s:%s:%s:%s", location.getWorld().getName(), location.getBlockX(), location.getBlockY(), location.getBlockZ());

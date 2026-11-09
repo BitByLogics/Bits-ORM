@@ -10,7 +10,7 @@ public enum DataTypeInferencer {
 
     DEFAULT(new Class[] {String.class}, "TEXT"),
     INT(new Class[]{Integer.class, int.class}, "INT"),
-    LONG(new Class[]{Long.class, long.class}, "LONG"),
+    LONG(new Class[]{Long.class, long.class}, "BIGINT"),
     DOUBLE(new Class[]{Double.class, double.class}, "DOUBLE"),
     FLOAT(new Class[]{Float.class,float.class}, "FLOAT"),
     SHORT(new Class[]{Short.class, short.class}, "SMALLINT"),

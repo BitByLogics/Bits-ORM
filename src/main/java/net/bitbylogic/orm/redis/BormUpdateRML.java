@@ -12,6 +12,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 
 public class BormUpdateRML extends RedisMessageListener {
 
@@ -27,50 +28,63 @@ public class BormUpdateRML extends RedisMessageListener {
         BormRedisUpdateType updateType = component.getData("updateType", BormRedisUpdateType.class);
         String tableName = component.getData("tableName", String.class);
 
-        BormTable bormTable = bormAPI.getTable(tableName);
+        if (updateType == null || tableName == null) {
+            return;
+        }
+
+        BormTable<?> bormTable = bormAPI.getTable(tableName);
 
         if (bormTable == null) {
+            return;
+        }
+
+        if (bormAPI.getType() == DatabaseType.SQLITE) {
             return;
         }
 
         Executor delayedExecutor = CompletableFuture.delayedExecutor(1, TimeUnit.SECONDS);
 
         if (updateType == BormRedisUpdateType.SAVE_ALL) {
-            CompletableFuture.runAsync(() -> {
-                bormTable.getDataMap().clear();
-                bormTable.loadData(() -> {});
-            }, delayedExecutor);
+            run(() -> bormTable.loadData(() -> {
+            }), delayedExecutor);
             return;
         }
 
         String objectId = component.getData("objectId", String.class);
 
-        Optional<BormObject> optionalObject = bormTable.getDataById(objectId);
+        if (objectId == null) {
+            return;
+        }
+
+        Optional<? extends BormObject> optionalObject = bormTable.getDataById(objectId);
 
         if (optionalObject.isEmpty()) {
             return;
         }
 
-        BormObject object = optionalObject.get();
+        Object cacheId = bormTable.getStatements().getId(optionalObject.get());
 
-        CompletableFuture.runAsync(() -> {
-            switch (updateType) {
-                case SAVE:
-                    if (bormAPI.getType() != DatabaseType.SQLITE) {
-                        bormTable.getDataMap().remove(bormTable.getStatements().getId(object));
-                        bormTable.getDataFromDB(objectId, false, true, o -> {
-                        });
-                        break;
-                    }
+        if (cacheId == null) {
+            return;
+        }
 
-                    break;
-                case DELETE:
-                    bormTable.getDataMap().remove(bormTable.getStatements().getId(object));
-                    break;
-                default:
-                    break;
-            }
-        }, delayedExecutor);
+        switch (updateType) {
+            case SAVE:
+                run(() -> bormTable.refresh(cacheId, null), delayedExecutor);
+                break;
+            case DELETE:
+                run(() -> bormTable.unload(cacheId), delayedExecutor);
+                break;
+            default:
+                break;
+        }
+    }
+
+    private void run(Runnable task, Executor executor) {
+        CompletableFuture.runAsync(task, executor).exceptionally(throwable -> {
+            bormAPI.getLogger().log(Level.SEVERE, "Failed to apply a Redis update", throwable);
+            return null;
+        });
     }
 
 }

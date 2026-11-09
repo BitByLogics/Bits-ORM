@@ -1,9 +1,9 @@
 package net.bitbylogic.orm.processor.impl;
 
-import com.google.gson.reflect.TypeToken;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.utils.ListUtil;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class StringListProcessor implements FieldProcessor<List<String>> {
@@ -14,7 +14,12 @@ public class StringListProcessor implements FieldProcessor<List<String>> {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public List<String> processFrom(Object o) {
+        if (o == null) {
+            return new ArrayList<>();
+        }
+
         return (List<String>) ListUtil.stringToList((String) o);
     }
 
