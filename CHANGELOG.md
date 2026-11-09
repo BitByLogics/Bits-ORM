@@ -2,9 +2,9 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.0.0] - 2026-11-09
 
-Planned as 2.0.0, the first release published as `net.bitbylogic:bits-orm` on the Minebit repository.
+The first release published as `net.bitbylogic:bits-orm` on the Minebit repository.
 
 ### Breaking changes
 * The jar no longer shades its dependencies. It contains only BORM's classes (about 75 KB instead of 19 MB), and HikariCP, Bit's Utils and the JDBC drivers are normal transitive dependencies. Shade and relocate them in your own plugin build, see the README.
