@@ -13,6 +13,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: borm-test
+          MYSQL_DATABASE: borm
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pborm-test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
     steps:
       - uses: actions/checkout@v7
 
@@ -24,7 +38,7 @@ jobs:
           cache: maven
 
       - name: Build, test and analyse
-        run: mvn -B verify
+        run: mvn -B verify -Dborm.mysql.port=3306
 
       - name: Upload coverage report
         if: always()
