@@ -9,6 +9,7 @@ import net.bitbylogic.orm.data.statements.BormStatements;
 import net.bitbylogic.orm.processor.FieldProcessor;
 import net.bitbylogic.orm.processor.impl.DefaultFieldProcessor;
 import net.bitbylogic.orm.query.Query;
+import net.bitbylogic.orm.redis.BormRedisHook;
 import net.bitbylogic.orm.redis.BormRedisUpdateType;
 import net.bitbylogic.orm.util.SqlIdentifier;
 import net.bitbylogic.utils.HashMapUtil;
@@ -282,11 +283,12 @@ public class BormTable<O extends BormObject> {
                     callback.accept(Optional.empty());
                 }
 
-                if (bormAPI.getRedisHook() == null) {
+                BormRedisHook redisHook = bormAPI.getRedisHook();
+                if (redisHook == null) {
                     return;
                 }
 
-                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE, table, statements.getId(object).toString());
+                redisHook.sendChange(BormRedisUpdateType.SAVE, table, statements.getId(object).toString());
                 return;
             }
 
@@ -314,11 +316,12 @@ public class BormTable<O extends BormObject> {
                 callback.accept(Optional.of(result));
             }
 
-            if (bormAPI.getRedisHook() == null) {
+            BormRedisHook redisHook = bormAPI.getRedisHook();
+            if (redisHook == null) {
                 return;
             }
 
-            bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE, table, statements.getId(object).toString());
+            redisHook.sendChange(BormRedisUpdateType.SAVE, table, statements.getId(object).toString());
         }, saveStatement.getValue().toArray());
     }
 
@@ -355,11 +358,12 @@ public class BormTable<O extends BormObject> {
             transaction.addAfterCommitHook(() -> {
                 onDataUpdated(object);
 
-                if (bormAPI.getRedisHook() == null) {
+                BormRedisHook redisHook = bormAPI.getRedisHook();
+                if (redisHook == null) {
                     return;
                 }
 
-                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE, table, statements.getId(object).toString());
+                redisHook.sendChange(BormRedisUpdateType.SAVE, table, statements.getId(object).toString());
             });
         }, saveStatement.getValue().toArray());
     }
@@ -382,8 +386,9 @@ public class BormTable<O extends BormObject> {
         });
 
         bormAPI.executeOrderedBatch(table, queries, parametersList, result -> {
-            if (bormAPI.getRedisHook() != null) {
-                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.SAVE_ALL, table, "");
+            BormRedisHook redisHook = bormAPI.getRedisHook();
+            if (redisHook != null) {
+                redisHook.sendChange(BormRedisUpdateType.SAVE_ALL, table, "");
             }
 
             if (callback != null) {
@@ -460,11 +465,12 @@ public class BormTable<O extends BormObject> {
         bormAPI.executeOrderedStatement(table, deleteStatement.getKey(), rs -> {
             onDataDeleted(object);
 
-            if (bormAPI.getRedisHook() == null) {
+            BormRedisHook redisHook = bormAPI.getRedisHook();
+            if (redisHook == null) {
                 return;
             }
 
-            bormAPI.getRedisHook().sendChange(BormRedisUpdateType.DELETE, table, statements.getId(object).toString());
+            redisHook.sendChange(BormRedisUpdateType.DELETE, table, statements.getId(object).toString());
         }, deleteStatement.getValue().toArray());
     }
 
@@ -545,11 +551,12 @@ public class BormTable<O extends BormObject> {
             transaction.addAfterCommitHook(() -> {
                 onDataDeleted(object);
 
-                if (bormAPI.getRedisHook() == null) {
+                BormRedisHook redisHook = bormAPI.getRedisHook();
+                if (redisHook == null) {
                     return;
                 }
 
-                bormAPI.getRedisHook().sendChange(BormRedisUpdateType.DELETE, table, statements.getId(object).toString());
+                redisHook.sendChange(BormRedisUpdateType.DELETE, table, statements.getId(object).toString());
             });
         }, deleteStatement.getValue().toArray());
     }
