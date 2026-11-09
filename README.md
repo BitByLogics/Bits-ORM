@@ -56,7 +56,7 @@ BORM is published on the Minebit repository.
 <dependency>
     <groupId>net.bitbylogic</groupId>
     <artifactId>bits-orm</artifactId>
-    <version>2.0.0</version>
+    <version>2.0.1</version>
 </dependency>
 ```
 
@@ -67,7 +67,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.bitbylogic:bits-orm:2.0.0")
+    implementation("net.bitbylogic:bits-orm:2.0.1")
 }
 ```
 
@@ -652,6 +652,7 @@ BORM ships processors for `List<String>` (registered by default) and for Bukkit 
 * `BormAPI(File)` throws `IllegalStateException` when the database file can't be created, instead of returning a half-built instance.
 * BORM's own `TypeToken` was removed, use `net.bitbylogic.utils.reflection.TypeToken` from Bit's Utils.
 * Table names must be plain identifiers (letters, digits, underscores).
+* The three-argument `BormTable` constructor no longer loads every row. Pass `true` as the fourth constructor argument (`loadData`) to preload every row, for example if you read `getDataMap()` right after startup.
 * The dependency moved from JitPack to the Minebit repository: `net.bitbylogic:bits-orm`.
 
 See the [CHANGELOG](CHANGELOG.md) for everything else.

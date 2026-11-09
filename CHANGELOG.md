@@ -2,7 +2,7 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project uses [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [2.0.1] - 2026-11-09
 
 ### Fixed
 * SQLite now starts when the driver is only visible through a plugin classloader (Paper `libraries:`), without the plugin registering the driver itself.
@@ -21,12 +21,12 @@ The first release published as `net.bitbylogic:bits-orm` on the Minebit reposito
 * BORM's own `TypeToken` class was removed. Use `net.bitbylogic.utils.reflection.TypeToken` from Bit's Utils.
 * `getDataSaveStatement` returns the SQL together with its bound values, and all statements are parameterized.
 * Dependencies come from the Minebit repository (`net.bitbylogic:bits-utils-common`, `net.bitbylogic:bits-rps`) instead of JitPack.
+* Lazy loading: the three-argument `BormTable` constructor no longer loads every row. Pass `true` as the fourth constructor argument (`loadData`) to preload every row.
 
 ### Added
 * `Transaction` and `BormAPI#transaction` for atomic multi-write transactions, with after-commit and rollback hooks.
 * `BormTable#query()`, a filter/sort/limit query builder, and `QueryOperator`.
 * `BormTable#unload`, `unloadAll`, `refresh` and `deleteAll`.
-* Lazy loading: the three-argument `BormTable` constructor no longer loads every row.
 * `onDataUpdated` hook on `BormTable`.
 * Per-table write ordering (`executeOrderedStatement`, `executeOrderedBatch`) and reads that wait for earlier writes to the same table (`executeQueryAfterWrites`).
 * Auto-increment keys of type `int`, `Integer`, `long` and `Long`, written back to the object after the first save.
