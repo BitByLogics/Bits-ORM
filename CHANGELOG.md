@@ -40,6 +40,7 @@ The first release published as `net.bitbylogic:bits-orm` on the Minebit reposito
 * Unreadable values from a field processor skip that row instead of aborting the whole load.
 
 ### Fixed
+* SQLite now starts when the driver is only visible through a plugin classloader (Paper `libraries:`), without the plugin registering the driver itself.
 * `List` and `Map` foreign fields whose element type is a subclass of `BormObject` were skipped, which broke loading of the whole table.
 * Loading a row whose foreign object no longer exists hung table registration forever. It now loads the field as `null`.
 * A table that needed several foreign tables only waited for the first one, and only wired up the last one that arrived.

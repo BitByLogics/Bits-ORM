@@ -94,6 +94,10 @@ public class BormAPI {
         String jdbcUrl = config.getJdbcUrl();
         this.type = jdbcUrl != null && jdbcUrl.contains("sqlite") ? DatabaseType.SQLITE : DatabaseType.MYSQL;
 
+        if (this.type == DatabaseType.SQLITE && config.getDriverClassName() == null && config.getDataSourceClassName() == null) {
+            config.setDriverClassName("org.sqlite.JDBC");
+        }
+
         this.dataSource = new HikariDataSource(config);
 
         if (executor != null) {
@@ -126,6 +130,7 @@ public class BormAPI {
         config.setConnectionTimeout(Duration.ofSeconds(60).toMillis());
         config.setMaxLifetime(Duration.ofMinutes(30).toMillis());
         config.setLeakDetectionThreshold(60000);
+        config.setDriverClassName("org.sqlite.JDBC");
         config.setJdbcUrl("jdbc:sqlite:" + databaseFile);
         config.addDataSourceProperty("cachePrepStmts", "true");
         config.addDataSourceProperty("prepStmtCacheSize", "250");
