@@ -6,6 +6,8 @@ An API for mapping Java objects to SQL, enabling seamless saving and loading of 
 
 </div>
 
+Documentation: see the [wiki](https://github.com/BitByLogics/Bits-ORM/wiki) for guides on tables, foreign keys, queries, transactions and more.
+
 ## Features
 * Simple setup, only requires 2 classes to use
 * Foreign table support, with cascading deletes
@@ -676,6 +678,16 @@ docker rm -f borm-mysql-test
 # Releasing
 
 Releases are published to `https://repo.minebit.dev/releases` and are immutable, a version can never be reused. To release, set the version in `pom.xml` to `X.Y.Z`, add its entry to the CHANGELOG, then push a tag named exactly `X.Y.Z`. The Release workflow checks that the tag matches the pom version, deploys, and creates the GitHub release.
+
+# Star History
+
+<a href="https://star-history.com/#BitByLogics/Bits-ORM&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=BitByLogics/Bits-ORM&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=BitByLogics/Bits-ORM&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=BitByLogics/Bits-ORM&type=Date" />
+ </picture>
+</a>
 
 # License
 
